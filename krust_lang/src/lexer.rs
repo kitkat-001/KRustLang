@@ -189,7 +189,7 @@ pub fn lex() -> LexerOutput
             }
             let int_literal: Result<u32, ParseIntError> = file_text[index..(index+length)].parse::<u32>();
             let token_type: TokenType = get_int_literal_token_type(int_literal);
-			let token: Token = Token{token_type, line, col, start: index, length};
+            let token: Token = Token{token_type, line, col, start: index, length};
             if let TokenType::Error = token.token_type
             {
                 can_compile = false;
@@ -205,14 +205,14 @@ pub fn lex() -> LexerOutput
         else
         {
             let mut length: usize = 1;
-            while !is_token_seperator(&file_text.chars().nth(index + length))
+            while !is_token_separator(&file_text.chars().nth(index + length))
             {
                 length += 1;
             }
-			let token: Token = Token{token_type: TokenType::Error, line, col, start: index, length};
+            let token: Token = Token{token_type: TokenType::Error, line, col, start: index, length};
             errors.push(String::from(format!("error ({file_path}:{line}:{col}): unrecognized token \"{}\"",
                 token.to_string(&file_text))));
-			tokens.push(token);
+            tokens.push(token);
             can_compile = false;
             index += length;
             col += length;
@@ -252,7 +252,7 @@ fn is_digit_option(c_option: &Option<char>) -> bool
 
 /// Returns whether or not the character stored in the option is a token seperator. <br/>
 /// Token seperators include whitespace, valid brackets, and the end of the file.
-fn is_token_seperator(c_option: &Option<char>) -> bool
+fn is_token_separator(c_option: &Option<char>) -> bool
 {
     match c_option
     {
