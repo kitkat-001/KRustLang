@@ -189,7 +189,7 @@ pub fn lex() -> LexerOutput
             }
             let int_literal: Result<u32, ParseIntError> = file_text[index..(index+length)].parse::<u32>();
             let token_type: TokenType = get_int_literal_token_type(int_literal);
-			let token: Token = Token{token_type, line, col, start: index, length};
+            let token: Token = Token{token_type, line, col, start: index, length};
             if let TokenType::Error = token.token_type
             {
                 can_compile = false;
@@ -209,10 +209,10 @@ pub fn lex() -> LexerOutput
             {
                 length += 1;
             }
-			let token: Token = Token{token_type: TokenType::Error, line, col, start: index, length};
+            let token: Token = Token{token_type: TokenType::Error, line, col, start: index, length};
             errors.push(String::from(format!("error ({file_path}:{line}:{col}): unrecognized token \"{}\"",
                 token.to_string(&file_text))));
-			tokens.push(token);
+            tokens.push(token);
             can_compile = false;
             index += length;
             col += length;
