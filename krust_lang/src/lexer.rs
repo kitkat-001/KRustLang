@@ -205,7 +205,7 @@ pub fn lex() -> LexerOutput
         else
         {
             let mut length: usize = 1;
-            while !is_token_seperator(&file_text.chars().nth(index + length))
+            while !is_token_separator(&file_text.chars().nth(index + length))
             {
                 length += 1;
             }
@@ -252,7 +252,7 @@ fn is_digit_option(c_option: &Option<char>) -> bool
 
 /// Returns whether or not the character stored in the option is a token seperator. <br/>
 /// Token seperators include whitespace, valid brackets, and the end of the file.
-fn is_token_seperator(c_option: &Option<char>) -> bool
+fn is_token_separator(c_option: &Option<char>) -> bool
 {
     match c_option
     {

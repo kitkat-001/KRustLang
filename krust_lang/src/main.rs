@@ -18,7 +18,7 @@ fn main() {
             println!();
             for error in errors
             {
-                println!("{}", error);
+                eprintln!("{}", error);
             }
         }
     }
