@@ -189,13 +189,14 @@ pub fn lex() -> LexerOutput
             }
             let int_literal: Result<u32, ParseIntError> = file_text[index..(index+length)].parse::<u32>();
             let token_type: TokenType = get_int_literal_token_type(int_literal);
-            if let TokenType::Error = token_type
+			let token: Token = Token{token_type, line, col, start: index, length};
+            if let TokenType::Error = token.token_type
             {
                 can_compile = false;
                 errors.push(String::from(format!("error ({file_path}:{line}:{col}): int literal \"{}\" must be at most {}", 
-                    &file_text[index..(index+length)], 0x8000_0000u32)));
+                    token.to_string(&file_text), 0x8000_0000u32)));
             }
-            tokens.push(Token{token_type, line, col, start: index, length});
+            tokens.push(token);
             index += length;
             col += length;
         }
@@ -208,9 +209,10 @@ pub fn lex() -> LexerOutput
             {
                 length += 1;
             }
-            tokens.push(Token{token_type: TokenType::Error, line, col, start: index, length});
+			let token: Token = Token{token_type: TokenType::Error, line, col, start: index, length};
             errors.push(String::from(format!("error ({file_path}:{line}:{col}): unrecognized token \"{}\"",
-                &file_text[index..(index+length)])));
+                token.to_string(&file_text))));
+			tokens.push(token);
             can_compile = false;
             index += length;
             col += length;
