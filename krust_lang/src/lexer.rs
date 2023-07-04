@@ -170,7 +170,7 @@ pub fn lex() -> LexerOutput
             }
             else if c == '\t'
             {
-                col += 4;
+                col += 4 - ((col - 1) % 4);
             }
             else 
             {    
