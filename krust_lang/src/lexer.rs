@@ -8,6 +8,7 @@ use std::io::Error;
 use std::thread;
 
 /// A token representing an indivisible piece of the source code.
+#[derive(Clone, Copy)]
 pub struct Token
 {
     pub token_type: TokenType,
@@ -21,7 +22,7 @@ pub struct Token
 }
 
 /// The allowed types of tokens.
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum TokenType
 {
     // Single character tokens.
@@ -58,6 +59,7 @@ pub enum LexerOutput
     /// The standard output. Should be returned in most cases.
     LexInfo
     {
+        file_path: String,
         file_text: String,
         tokens: Vec<Token>,
         errors: Vec<String>,
@@ -113,7 +115,7 @@ pub fn lex() -> LexerOutput
         if let None = c
         {
             tokens.push(Token{token_type: TokenType::EOF, line, col, start: index, length: 0});
-            return LexerOutput::LexInfo{file_text, tokens, errors, can_compile};
+            return LexerOutput::LexInfo{file_path: file_path.clone(), file_text, tokens, errors, can_compile};
         }
         let c: char = c.expect("should be valid as error handled earlier");
 
@@ -193,7 +195,7 @@ pub fn lex() -> LexerOutput
             if let TokenType::Error = token.token_type
             {
                 can_compile = false;
-                errors.push(String::from(format!("error ({file_path}:{line}:{col}): int literal \"{}\" must be at most {}", 
+                errors.push(String::from(format!("error (line {line}:{col}): int literal \"{}\" must be at most {}", 
                     token.to_string(&file_text), 0x8000_0000u32)));
             }
             tokens.push(token);
@@ -210,7 +212,7 @@ pub fn lex() -> LexerOutput
                 length += 1;
             }
             let token: Token = Token{token_type: TokenType::Error, line, col, start: index, length};
-            errors.push(String::from(format!("error ({file_path}:{line}:{col}): unrecognized token \"{}\"",
+            errors.push(String::from(format!("error (line {line}:{col}): unrecognized token \"{}\"",
                 token.to_string(&file_text))));
             tokens.push(token);
             can_compile = false;
