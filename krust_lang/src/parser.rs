@@ -8,12 +8,10 @@ pub enum Expression
     Binary{left:  Box<Expression>, op: Token, right: Box<Expression>},
     Grouping{expr: Box<Expression>},
     Literal{token: Token},
-    Unary{op: Token, expr: Box<Expression>}, 
-
-    Error(Token)
+    Unary{op: Token, expr: Box<Expression>},
 }
 
-// The output given by the parser
+// The output given by the parser.
 pub enum ParserOutput
 {
     ParseInfo
@@ -28,6 +26,7 @@ pub enum ParserOutput
 
 impl Expression
 {
+    // Convert the expression into a string.
     pub fn to_string(&self, source: &str) -> String
     {
         match &self
@@ -39,7 +38,6 @@ impl Expression
             Expression::Literal { token } => token.to_string(source).to_string(),
             Expression::Unary { op, expr } 
                 => format!("{}({})", op.to_string(source), (*expr).to_string(source)),
-            Expression::Error(token) => token.to_string(source).to_string(),
         }
     }
 }
@@ -50,7 +48,7 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput
     match lex_output
     {
         LexerOutput::Failure(text) => ParserOutput::Failure(text),
-        LexerOutput::LexInfo{file_path, file_text, tokens, errors, can_compile} =>
+        LexerOutput::LexInfo{file_path: _, file_text, tokens, errors, can_compile} =>
         {
             let mut can_compile: bool = can_compile;
             let mut errors: Vec<String> = errors.clone();
@@ -67,6 +65,7 @@ fn get_expression(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &m
     get_additive(&tokens, errors, can_compile, index)
 }
 
+// Get an additive expression (+, -).
 fn get_additive(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut Box<usize>) -> Expression
 {
     let expr: Expression = get_multiplicative(tokens, errors, can_compile, index);
@@ -84,6 +83,7 @@ fn get_additive(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut
     }
 }
 
+// Get a multiplicative expression (*, /).
 fn get_multiplicative(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut Box<usize>) -> Expression
 {
     let expr: Expression = get_unary(tokens, errors, can_compile, index);
@@ -101,6 +101,7 @@ fn get_multiplicative(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile
     }
 } 
 
+// Get a unary expression.
 fn get_unary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut Box<usize>) -> Expression
 {
     if tokens[**index].token_type == TokenType::Minus
@@ -115,6 +116,7 @@ fn get_unary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bo
     }
 }
 
+// Get a primary expression (literals and grouping expressions).
 fn get_primary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut Box<usize>) -> Expression
 {
     match tokens[**index].token_type
