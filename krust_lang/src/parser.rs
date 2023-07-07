@@ -54,9 +54,9 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput
             let mut errors: Vec<String> = errors.clone();
             let mut index: usize = 0;
             let expr: Expression = get_expression(&tokens.clone(), &mut errors, &mut can_compile, &mut index);
-            if index <= tokens.len() && tokens[index].token_type != TokenType::EOF
+            if index + 1 < tokens.len() && tokens[index + 1].token_type != TokenType::EOF
             {
-                errors.push(format!("error (line {}:{}): expected EOF", tokens[index].line, tokens[index].col));
+                errors.push(format!("error (line {}:{}): expected EOF", tokens[index + 1].line, tokens[index + 1].col));
                 can_compile = false;
             }
             ParserOutput::ParseInfo{file_text, expr, errors, can_compile}
@@ -131,7 +131,7 @@ fn get_primary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut 
         {
             *index += 1;
             let expr: Expression = get_expression(tokens, errors, can_compile, index);
-            if tokens[*index].token_type != TokenType::RightParen
+            if tokens[*index + 1].token_type != TokenType::RightParen
             {
                 errors.push(format!("error (line {}:{}): Expected \')\' following \'(\'", tokens[*index].line, tokens[*index].col));
                 *can_compile = false;
