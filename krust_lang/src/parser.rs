@@ -2,7 +2,7 @@
 use crate::lexer;
 use lexer::{Token, LexerOutput, TokenType};
 
-// An enum represetning the possible types of expressions.
+/// An enum represetning the possible types of expressions.
 pub enum Expression
 {
     Binary{left:  Box<Expression>, op: Token, right: Box<Expression>},
@@ -11,7 +11,7 @@ pub enum Expression
     Unary{op: Token, expr: Box<Expression>},
 }
 
-// The output given by the parser.
+/// The output given by the parser.
 pub enum ParserOutput
 {
     ParseInfo
@@ -26,7 +26,7 @@ pub enum ParserOutput
 
 impl Expression
 {
-    // Convert the expression into a string.
+    /// Convert the expression into a string.
     pub fn to_string(&self, source: &str) -> String
     {
         match &self
@@ -42,7 +42,7 @@ impl Expression
     }
 }
 
-// Parse the output from the lexer.
+/// Parse the output from the lexer.
 pub fn parse(lex_output: LexerOutput) -> ParserOutput
 {
     match lex_output
@@ -114,7 +114,8 @@ fn get_unary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bo
         let expr: Expression = get_unary(tokens, errors, can_compile, index);
         Expression::Unary { op, expr: Box::new(expr) }
     }
-    else {
+    else 
+    {
         get_primary(tokens, errors, can_compile, index)
     }
 }
