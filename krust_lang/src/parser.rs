@@ -52,7 +52,13 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput
         {
             let mut can_compile: bool = can_compile;
             let mut errors: Vec<String> = errors.clone();
-            let expr: Expression = get_expression(&tokens.clone(), &mut errors, &mut can_compile, &mut 0);
+            let mut index: usize = 0;
+            let expr: Expression = get_expression(&tokens.clone(), &mut errors, &mut can_compile, &mut index);
+            if index <= tokens.len() && tokens[index].token_type != TokenType::EOF
+            {
+                errors.push(format!("error (line {}:{}): expected EOF", tokens[index].line, tokens[index].col));
+                can_compile = false;
+            }
             ParserOutput::ParseInfo{file_text, expr, errors, can_compile}
         }
     }
@@ -68,8 +74,10 @@ fn get_expression(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &m
 // Get an additive expression (+, -).
 fn get_additive(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
 {
+
     let mut expr: Expression = get_multiplicative(tokens, errors, can_compile, index);
-    while tokens[*index + 1].token_type == TokenType::Plus || tokens[*index + 1].token_type == TokenType::Minus
+    while tokens[*index].token_type != TokenType::EOF &&
+        (tokens[*index + 1].token_type == TokenType::Plus || tokens[*index + 1].token_type == TokenType::Minus)
     {
         *index += 1;
         let op: Token = tokens[*index];
@@ -84,7 +92,8 @@ fn get_additive(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut
 fn get_multiplicative(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
 {
     let mut expr: Expression = get_unary(tokens, errors, can_compile, index);
-    while tokens[*index + 1].token_type == TokenType::Star || tokens[*index + 1].token_type == TokenType::Slash
+    while tokens[*index].token_type != TokenType::EOF &&
+        (tokens[*index + 1].token_type == TokenType::Star || tokens[*index + 1].token_type == TokenType::Slash)
     {
         *index += 1;
         let op: Token = tokens[*index];
@@ -131,6 +140,13 @@ fn get_primary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut 
                 *index += 1;
             }
             Expression::Grouping { expr: Box::new(expr) }
+        },
+        TokenType::EOF =>
+        {
+            errors.push(format!("error (line {}:{}): Unexpected EOF", 
+                tokens[*index].line, tokens[*index].col));
+            *can_compile = false;
+            Expression::Literal { token: tokens[*index] }
         },
         _ =>
         {
