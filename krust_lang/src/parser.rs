@@ -68,37 +68,31 @@ fn get_expression(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &m
 // Get an additive expression (+, -).
 fn get_additive(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
 {
-    let expr: Expression = get_multiplicative(tokens, errors, can_compile, index);
-    if tokens[*index + 1].token_type == TokenType::Plus || tokens[*index + 1].token_type == TokenType::Minus
+    let mut expr: Expression = get_multiplicative(tokens, errors, can_compile, index);
+    while tokens[*index + 1].token_type == TokenType::Plus || tokens[*index + 1].token_type == TokenType::Minus
     {
         *index += 1;
         let op: Token = tokens[*index];
         *index += 1;
         let right: Expression = get_multiplicative(tokens, errors, can_compile, index);
-        Expression::Binary{left: Box::new(expr), op, right: Box::new(right)}
+        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)}
     }
-    else 
-    {
-        expr
-    }
+    expr
 }
 
 // Get a multiplicative expression (*, /).
 fn get_multiplicative(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
 {
-    let expr: Expression = get_unary(tokens, errors, can_compile, index);
-    if tokens[*index + 1].token_type == TokenType::Star || tokens[*index + 1].token_type == TokenType::Slash
+    let mut expr: Expression = get_unary(tokens, errors, can_compile, index);
+    while tokens[*index + 1].token_type == TokenType::Star || tokens[*index + 1].token_type == TokenType::Slash
     {
         *index += 1;
         let op: Token = tokens[*index];
         *index += 1;
         let right: Expression = get_unary(tokens, errors, can_compile, index);
-        Expression::Binary{left: Box::new(expr), op, right: Box::new(right)}
+        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)}
     }
-    else 
-    {
-        expr
-    }
+    expr
 } 
 
 // Get a unary expression.
