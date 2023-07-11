@@ -3,6 +3,7 @@ use crate::lexer;
 use lexer::{Token, LexerOutput, TokenType};
 
 /// An enum represetning the possible types of expressions.
+#[derive(Clone)]
 pub enum Expression
 {
     Binary{left:  Box<Expression>, op: Token, right: Box<Expression>},
@@ -15,16 +16,13 @@ pub enum Expression
 }
 
 /// The output given by the parser.
-pub enum ParserOutput
+pub struct ParserOutput
 {
-    ParseInfo
-    {
-        file_text: String,
-        expr: Expression,
-        errors: Vec<String>,
-        can_compile: bool,
-    },
-    Failure(String)
+    pub file_text: String,
+    pub expr: Expression,
+    pub errors: Vec<String>,
+    pub can_compile: bool,
+    
 }
 
 impl Expression
@@ -63,23 +61,18 @@ impl Expression
 /// Parse the output from the lexer.
 pub fn parse(lex_output: LexerOutput) -> ParserOutput
 {
-    match lex_output
+    let mut can_compile: bool = lex_output.can_compile;
+    let mut errors: Vec<String> = lex_output.errors.clone();
+    let mut index: usize = 0;
+    let tokens: Vec<Token> = lex_output.tokens;
+    let expr: Expression = get_expression(&tokens.clone(), &mut errors, &mut can_compile, &mut index);
+    if index < tokens.len() && tokens[index].token_type != TokenType::EOF
     {
-        LexerOutput::Failure(text) => ParserOutput::Failure(text),
-        LexerOutput::LexInfo{file_path: _, file_text, tokens, errors, can_compile} =>
-        {
-            let mut can_compile: bool = can_compile;
-            let mut errors: Vec<String> = errors.clone();
-            let mut index: usize = 0;
-            let expr: Expression = get_expression(&tokens.clone(), &mut errors, &mut can_compile, &mut index);
-            if index < tokens.len() && tokens[index].token_type != TokenType::EOF
-            {
-                errors.push(format!("error (line {}:{}): expected EOF", tokens[index].line, tokens[index].col));
-                can_compile = false;
-            }
-            ParserOutput::ParseInfo{file_text, expr, errors, can_compile}
-        }
+        errors.push(format!("error (line {}:{}): expected EOF", tokens[index].line, tokens[index].col));
+        can_compile = false;
     }
+    improve_ast(Box::new(expr.clone()), None, &mut errors, &mut can_compile);
+    ParserOutput{file_text: lex_output.file_text.clone(), expr, errors, can_compile}
 }
 
 
@@ -198,3 +191,45 @@ fn get_additive(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut
     }
     expr
 } 
+
+// Simplify and correct the AST.
+fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, errors: &mut Vec<String>, can_compile: &mut bool)
+{
+    match *expr
+    {
+        Expression::Binary { ref left, op: _, ref right } =>
+        {
+            improve_ast(left.clone(), Some(expr.clone()), errors, can_compile);
+            improve_ast(right.clone(), Some(expr.clone()), errors, can_compile);
+        },
+        Expression::Grouping { expr: ref child } =>
+        {
+            improve_ast(child.clone(), Some(expr.clone()), errors, can_compile);
+        },
+        Expression::Literal { token } => 
+        {
+            if let TokenType::IntLiteral(0x8000_0000u32) = token.token_type
+            {
+                let mut preceded_by_unary: bool = false;
+                if let Some(boxed_expr) = parent
+                {
+                    if let Expression::Unary { .. } = *boxed_expr
+                    {
+                        preceded_by_unary = true;
+                    }
+                }
+                if !preceded_by_unary
+                {
+                    errors.push(format!("error (line {}:{}): the int literal {} must be preceded by a unary \'-\' operator",
+                        token.line, token.col, 0x8000_0000u32));
+                    *can_compile = false;
+                }
+            }
+        },
+        Expression::Unary { op: _, expr: ref child } =>
+        {
+            improve_ast(child.clone(), Some(expr.clone()), errors, can_compile);
+        },
+        _ => { return; },
+    }
+}

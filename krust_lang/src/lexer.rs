@@ -1,11 +1,8 @@
 //! The module for lexing the source file, i.e. splitting it up into tokens.
 
-use std::env::args;
 use std::fs::read_to_string;
-use std::num::ParseIntError;
-use std::panic::catch_unwind;
 use std::io::Error;
-use std::thread;
+use std::num::ParseIntError;
 
 /// A token representing an indivisible piece of the source code.
 #[derive(Clone, Copy)]
@@ -54,49 +51,20 @@ impl Token
 }
 
 /// The output given by the lexer.
-pub enum LexerOutput
+pub struct LexerOutput
 {
-    /// The standard output. Should be returned in most cases.
-    LexInfo
-    {
-        file_path: String,
-        file_text: String,
-        tokens: Vec<Token>,
-        errors: Vec<String>,
-        can_compile: bool,
-    },
-    /// Only to be returned when file can not be read. <br/>
-    /// Errors that occur while lexing should be added to the <b>errors</b> field in the <b>LexInfo</b> struct.
-    Failure(String)
+    pub file_text: String,
+    pub tokens: Vec<Token>,
+    pub errors: Vec<String>,
+    pub can_compile: bool,
 }
 
 /// Lexes the file given in the command line.
-pub fn lex() -> LexerOutput
+pub fn lex(file_path: &str) -> LexerOutput
 {
-    // File-reading errors.
-    let input: thread::Result<Vec<String>> = catch_unwind(||{args().collect()});
-    if input.is_err()
-    {
-        return LexerOutput::Failure(String::from("error: could not read command line arguments"));
-    }
-    let input: Vec<String> = input.ok().expect("should be valid as error handled earlier");
-    if input.len() > 2
-    {
-        return LexerOutput::Failure(String::from("error: too many command line arguments"));
-    }
-    if input.len() == 1
-    {
-        return LexerOutput::Failure("error: not enough command line arguments".to_string());
-    }
-    let file_path: &String = &input[1];
-    let file_text: Result<String, Error> = read_to_string(file_path);
-    if file_text.is_err()
-    {
-        return LexerOutput::Failure(String::from(format!("error: could not open file \"{file_path}\"")));
-    }
-
     // Prepare fields for output.
-    let file_text: String = file_text.ok().expect("should be valid as error handled earlier");
+    let file_text: Result<String, Error> = read_to_string(file_path);
+    let file_text: String = file_text.ok().expect("should be valid as error handled in command line reader");
     let mut tokens: Vec<Token> = Vec::new();
     let mut errors: Vec<String> = Vec::new();
     let mut can_compile: bool = true;
@@ -115,7 +83,7 @@ pub fn lex() -> LexerOutput
         if let None = c
         {
             tokens.push(Token{token_type: TokenType::EOF, line, col, start: index, length: 0});
-            return LexerOutput::LexInfo{file_path: file_path.clone(), file_text, tokens, errors, can_compile};
+            return LexerOutput{file_text, tokens, errors, can_compile};
         }
         let c: char = c.expect("should be valid as error handled earlier");
 

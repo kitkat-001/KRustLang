@@ -1,31 +1,38 @@
+mod cli_reader;
 mod lexer;
 mod parser;
 
+use cli_reader::{CLIOutput, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
 
 fn main() {
-    let lex_output: LexerOutput = lex();
-    let parse_output: ParserOutput = parse(lex_output);
-    
-    match parse_output
+    let cli_output: CLIOutput = read_command_line();
+    match cli_output
     {
-        ParserOutput::Failure(fail) =>
+        CLIOutput::Error(errors) =>
         {
-            eprintln!("{}", fail);
-        }
-        ParserOutput::ParseInfo{file_text, expr, errors, can_compile} =>
-        {
-            println!("{}", expr.to_string(file_text.as_str()));
             for error in errors
             {
                 eprintln!("{}", error);
             }
-            if can_compile
+        }
+        CLIOutput::CLIInfo { file_path, ..} =>
+        {
+            let lex_output: LexerOutput = lex(&file_path);
+            let parse_output: ParserOutput = parse(lex_output);
+
+            println!("{}", parse_output.expr.to_string(parse_output.file_text.as_str()));
+            for error in parse_output.errors
+            {
+                eprintln!("{}", error);
+            }
+            if parse_output.can_compile
             {
                 println!("Can compile");
             }
-            else {
+            else 
+            {
                 println!("could not compile due to above errors")
             }
         }

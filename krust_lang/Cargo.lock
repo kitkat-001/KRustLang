@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "krust_lang"
+name = "krust"
 version = "0.1.0"
