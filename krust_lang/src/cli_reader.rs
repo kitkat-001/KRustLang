@@ -110,6 +110,11 @@ pub fn read_command_line() -> CLIOutput
     {
         if let Some(file_path) = file_path
         {
+            if <u8 as Into<u32>>::into(ptr_size) > usize::BITS
+            {
+                println!("warning: this program is being compiled for a {ptr_size}-bit machine, while this is only a {}-bit machine.", 
+                usize::BITS);
+            }
             CLIOutput::CLIInfo { file_path, cli_args: [ptr_size] }
         }
         else 
