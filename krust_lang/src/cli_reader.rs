@@ -39,7 +39,7 @@ pub fn read_command_line() -> CLIOutput
     let input: &[String] = &input[1..];
     let compiler_flags: [&str; 1] = ["-pointer_size"];
     let mut file_path: Option<String> = None;
-    let mut ptr_size: u8 = min(usize::BITS, u8::MAX.into()).try_into().expect("should be valid as max value is u8");
+    let mut ptr_size: u16 = min(usize::BITS, 2047).try_into().expect("should be valid as max value is less than u16::MAX");
     let mut errors: Vec<String> = Vec::new();
     let mut multiple_file_error: bool = false;
     for arg in input
@@ -66,14 +66,22 @@ pub fn read_command_line() -> CLIOutput
             }
             else 
             {
-                let parsed_arg: Result<u8, ParseIntError> = arg[1..].parse::<u8>();
+                let parsed_arg: Result<u16, ParseIntError> = arg[1..].parse::<u16>();
                 if let Err(ParseIntError{..}) = parsed_arg
                 {
-                    errors.push(format!("error: compiler flag \"{}\" requires a numerical argument less than 256.", compiler_flags[0]));
+                    errors.push(format!("error: compiler flag \"{}\" requires a numerical argument.", compiler_flags[0]));
                 }
                 else 
                 {
                     ptr_size = parsed_arg.ok().expect("should be valid as error handled earlier.");
+                }
+                if ptr_size >= 2048
+                {
+                    errors.push(format!("error: compiler flag \"{}\" requires an argument less than 2048.", compiler_flags[0]));
+                }
+                if ptr_size < 8
+                {
+                    errors.push(format!("error: compiler flag \"{}\" requires an argument that's at least 8.", compiler_flags[0]));
                 }
             }
         }
@@ -110,12 +118,17 @@ pub fn read_command_line() -> CLIOutput
     {
         if let Some(file_path) = file_path
         {
-            if <u8 as Into<u32>>::into(ptr_size) > usize::BITS
+            let ptr_size_bytes: u8 = (ptr_size / 8).try_into().expect("ptr_size maximum is less than 2048");
+            if ptr_size % 8 != 0
             {
-                println!("warning: this program is being compiled for a {ptr_size}-bit machine, while this is only a {}-bit machine.", 
-                usize::BITS);
+                println!("warning: argument of \"{}\" will be rounded down to the nearest multiple of 8", compiler_flags[0]);
             }
-            CLIOutput::CLIInfo { file_path, cli_args: [ptr_size] }
+            if <u8 as Into<u32>>::into(ptr_size_bytes) * 8 > usize::BITS
+            {
+                println!("warning: this program is being compiled for a {}-bit machine, while this is only a {}-bit machine.", 
+                    <u8 as Into<u32>>::into(ptr_size_bytes)*8, usize::BITS);
+            }
+            CLIOutput::CLIInfo { file_path, cli_args: [ptr_size_bytes] }
         }
         else 
         {
