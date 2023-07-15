@@ -1,10 +1,12 @@
 mod cli_reader;
 mod lexer;
 mod parser;
+mod compiler;
 
 use cli_reader::{CLIOutput, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
+use compiler::{CompilerOutput, compile};
 
 fn main() {
     let cli_output: CLIOutput = read_command_line();
@@ -17,19 +19,22 @@ fn main() {
                 eprintln!("{}", error);
             }
         }
-        CLIOutput::CLIInfo { file_path, ..} =>
+        CLIOutput::CLIInfo { file_path, cli_args} =>
         {
             let lex_output: LexerOutput = lex(&file_path);
             let parse_output: ParserOutput = parse(lex_output);
+            let compile_ouput: CompilerOutput = compile(parse_output, cli_args);
 
-            println!("{}", parse_output.expr.to_string(parse_output.file_text.as_str()));
-            for error in parse_output.errors
+            for error in compile_ouput.errors
             {
                 eprintln!("{}", error);
             }
-            if parse_output.can_compile
+            if let Some(bytecode) = compile_ouput.bytecode
             {
-                println!("Can compile");
+                for byte in bytecode
+                {
+                    print!("{}, ", byte);
+                }
             }
             else 
             {

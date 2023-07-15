@@ -22,11 +22,11 @@ pub struct ParserOutput
     pub expr: Expression,
     pub errors: Vec<String>,
     pub can_compile: bool,
-    
 }
 
 impl Expression
 {
+    #[allow(dead_code)]
     /// Convert the expression into a string.
     pub fn to_string(&self, source: &str) -> String
     {

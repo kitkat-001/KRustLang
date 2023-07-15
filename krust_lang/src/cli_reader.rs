@@ -2,7 +2,7 @@
 
 use std::cmp::min;
 use std::env::args;
-use std::fs::File;
+use std::fs::read_to_string;
 use std::io;
 use std::num::ParseIntError;
 use std::panic::catch_unwind;
@@ -97,12 +97,17 @@ pub fn read_command_line() -> CLIOutput
         }
     }
     
+    let mut file_size: usize = 0;
     if let Some(ref path) = file_path
     {
-        let result: io::Result<File> = File::open(path);
+        let result: io::Result<String> = read_to_string(path);
         if result.is_err()
         {
             errors.push(format!("error: could not open file \"{path}\""));
+        }
+        else 
+        {
+            file_size = result.ok().expect("should be valid as error handled above").len();    
         }
     }
     else if !multiple_file_error
@@ -123,10 +128,17 @@ pub fn read_command_line() -> CLIOutput
             {
                 println!("warning: argument of \"{}\" will be rounded down to the nearest multiple of 8", compiler_flags[0]);
             }
-            if <u8 as Into<u32>>::into(ptr_size_bytes) * 8 > usize::BITS
+            let ptr_size: usize = <u8 as Into<usize>>::into(ptr_size_bytes) * 8;
+            if ptr_size > usize::BITS.try_into().expect("max value of usize must be less than the number of bits")
             {
-                println!("warning: this program is being compiled for a {}-bit machine, while this is only a {}-bit machine.", 
-                    <u8 as Into<u32>>::into(ptr_size_bytes)*8, usize::BITS);
+                println!("warning: this program is being compiled for a {ptr_size}-bit machine, while this is only a {}-bit machine.", 
+                    usize::BITS);
+            }
+            else if ptr_size < usize::BITS.try_into().expect("max value of usize must be less than the number of bits")
+                && file_size > 1 << ptr_size
+            {
+                errors.push(format!("error: the file is too big to compile for a {ptr_size}-bit machine"));
+                return CLIOutput::Error(errors);
             }
             CLIOutput::CLIInfo { file_path, cli_args: [ptr_size_bytes] }
         }

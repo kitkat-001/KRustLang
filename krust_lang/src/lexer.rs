@@ -138,10 +138,6 @@ pub fn lex(file_path: &str) -> LexerOutput
                     index += 1;
                 }
             }
-            else if c == '\t'
-            {
-                col += 4 - ((col - 1) % 4);
-            }
             else 
             {    
                 col += 1;
