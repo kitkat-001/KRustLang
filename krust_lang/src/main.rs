@@ -2,11 +2,13 @@ mod cli_reader;
 mod lexer;
 mod parser;
 mod compiler;
+mod vm;
 
 use cli_reader::{CLIOutput, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
 use compiler::{CompilerOutput, compile};
+use vm::run;
 
 fn main() {
     let cli_output: CLIOutput = read_command_line();
@@ -31,10 +33,7 @@ fn main() {
             }
             if let Some(bytecode) = compile_ouput.bytecode
             {
-                for byte in bytecode
-                {
-                    print!("{}, ", byte);
-                }
+                run(bytecode);
             }
             else 
             {

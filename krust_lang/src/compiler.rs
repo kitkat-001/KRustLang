@@ -4,7 +4,10 @@ use crate::{lexer, parser};
 use lexer::TokenType;
 use parser::{Expression, ParserOutput};
 
+use num_derive::FromPrimitive;
+
 /// The opcodes used in the bytecode.
+#[derive(FromPrimitive)]
 pub enum OpCodes
 {
     PushInt,
@@ -67,8 +70,8 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
                 TokenType::Slash => 
                 {
                      bytecode.push(OpCodes::DivideInt as u8); 
-                     bytecode.append(&mut op.col.to_le_bytes()[..(ptr_size as usize)].to_vec());
                      bytecode.append(&mut op.line.to_le_bytes()[..(ptr_size as usize)].to_vec());
+                     bytecode.append(&mut op.col.to_le_bytes()[..(ptr_size as usize)].to_vec());
                 },
                 _ => { panic!("invalid token found at head of binary expression.")}
             }
