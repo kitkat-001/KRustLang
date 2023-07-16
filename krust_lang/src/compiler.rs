@@ -27,17 +27,27 @@ pub struct CompilerOutput
 }
 
 /// Compiles to bytecode.
-pub fn compile(parser_ouput: ParserOutput, cli_args: [u8; 1]) -> CompilerOutput
+pub fn compile(parser_output: ParserOutput, cli_args: [u8; 1]) -> CompilerOutput
 {
     let mut bytecode: Option<Vec<u8>> = None;
-    if parser_ouput.can_compile
+    let mut errors: Vec<String> = parser_output.errors.clone();
+
+    if parser_output.can_compile
     {
         let mut byte_list: Vec<u8> = cli_args.to_vec();
-        byte_list.append(&mut generate_bytecode(parser_ouput.expr, cli_args[0]));
+        byte_list.append(&mut generate_bytecode(parser_output.expr, cli_args[0]));
         byte_list.push(OpCodes::PopInt as u8);
-        bytecode = Some(byte_list);
+        if u32::from(cli_args[0]) * 8 < usize::BITS && byte_list.len() >= 1 << (cli_args[0] * 8)
+        {
+            errors.push("error: could not compile as bytecode was too large.".to_string());
+        }
+        else
+        {
+            bytecode = Some(byte_list);
+        }
     }
-    CompilerOutput { file_text: parser_ouput.file_text, bytecode, errors: parser_ouput.errors }
+
+    CompilerOutput { file_text: parser_output.file_text, bytecode, errors }
 }
 
 fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
