@@ -38,7 +38,7 @@ pub fn run(bytecode: Vec<u8>)
                         stack.push(bytecode[index]);
                         index += 1;
                     }
-                }
+                },
                 OpCodes::PopInt =>
                 {
                     let value: Option<i32> = pop_int(&mut stack);
@@ -49,9 +49,9 @@ pub fn run(bytecode: Vec<u8>)
                     else 
                     {
                         eprintln!("fatal error; program terminated");
-                        return
+                        return;
                     }
-                }
+                },
                 OpCodes::MinusInt =>
                 {
                     let value: Option<i32> = pop_int(&mut stack);
