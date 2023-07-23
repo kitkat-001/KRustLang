@@ -49,6 +49,7 @@ pub fn run(bytecode: Vec<u8>)
                     else 
                     {
                         eprintln!("fatal error; program terminated");
+                        return
                     }
                 }
                 OpCodes::MinusInt =>
@@ -62,6 +63,7 @@ pub fn run(bytecode: Vec<u8>)
                     else 
                     {
                         eprintln!("fatal error; program terminated");
+                        return;
                     }
                 },
                 OpCodes::AddInt =>
@@ -81,6 +83,7 @@ pub fn run(bytecode: Vec<u8>)
                     if fail 
                     {
                         eprintln!("fatal error; program terminated");
+                        return;
                     }
                 },
                 OpCodes::SubtractInt =>
@@ -100,6 +103,7 @@ pub fn run(bytecode: Vec<u8>)
                     if fail 
                     {
                         eprintln!("fatal error; program terminated");
+                        return;
                     }
                 },
                 OpCodes::MultiplyInt =>
@@ -119,6 +123,7 @@ pub fn run(bytecode: Vec<u8>)
                     if fail 
                     {
                         eprintln!("fatal error; program terminated");
+                        return;
                     }
                 },
                 OpCodes::DivideInt =>
@@ -163,6 +168,7 @@ pub fn run(bytecode: Vec<u8>)
                     if fail 
                     {
                         eprintln!("fatal error; program terminated");
+                        return;
                     }
                     index += 2 * ptr_size as usize;
                 }
