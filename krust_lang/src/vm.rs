@@ -13,8 +13,13 @@ pub fn run(bytecode: Vec<u8>)
         eprintln!("fatal error; program terminated");
         return;
     }
-
     let ptr_size: usize = bytecode[0] as usize;
+    if ptr_size * 8 > usize::BITS
+    {
+        eprintln!("fatal error; program terminated");
+        return;
+    }
+
     let mut index: usize = 1;
     let mut stack: Vec<u8> = Vec::new();
     while index < bytecode.len()
