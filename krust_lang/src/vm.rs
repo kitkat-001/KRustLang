@@ -167,7 +167,11 @@ pub fn run(bytecode: Vec<u8>)
                     index += 2 * ptr_size as usize;
                 }
             }},
-            None => { return; }
+            None => 
+            { 
+                eprintln!("fatal error; program terminated"); 
+                return;
+            }
         }
     }
 }
