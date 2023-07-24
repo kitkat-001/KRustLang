@@ -70,8 +70,8 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
                 TokenType::Slash => 
                 {
                      bytecode.push(OpCodes::DivideInt as u8); 
-                     bytecode.append(&mut op.line.to_le_bytes()[..(ptr_size as usize)].to_vec());
-                     bytecode.append(&mut op.col.to_le_bytes()[..(ptr_size as usize)].to_vec());
+                     bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
+                     bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
                 },
                 _ => { panic!("invalid token found at head of binary expression.")}
             }
@@ -103,4 +103,17 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
         _ => panic!("all expression types should have been accounted for"),
     }
     bytecode
+}
+
+fn usize_to_ptr_size(value: usize, ptr_size: u8) -> Vec<u8>
+{
+    let usize_size_bytes: u32 = usize::BITS / 8;
+    let bytes = value.to_le_bytes();
+    let bytes: &[u8] = &bytes[..u32::min(ptr_size as u32, usize_size_bytes) as usize];
+    let mut bytes: Vec<u8> = bytes.to_vec();
+    while bytes.len() < ptr_size as usize
+    {
+        bytes.push(0);
+    } 
+    bytes
 }

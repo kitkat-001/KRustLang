@@ -14,9 +14,10 @@ pub fn run(bytecode: Vec<u8>)
         return;
     }
     let ptr_size: usize = bytecode[0] as usize;
-    if ptr_size * 8 > usize::BITS
+    if ptr_size * 8 > usize::BITS.try_into().expect("max value of usize must be less than the number of bits")
     {
-        eprintln!("fatal error; program terminated");
+        eprintln!("error:  this program was compiled for a {}-bit machine, while this is only a {}-bit machine.", 
+            ptr_size * 8, usize::BITS);
         return;
     }
 
