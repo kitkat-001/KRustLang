@@ -6,19 +6,22 @@ use compiler::OpCodes;
 use num_traits::FromPrimitive;
 
 /// Runs the bytecode.
-pub fn run(bytecode: Vec<u8>)
+pub fn run(bytecode: &Vec<u8>) -> (String, String)
 {
+    let mut output: String = String::new();
+    let mut err: String = String::new();
+
     if bytecode.len() < 1
     {
-        eprintln!("fatal error; program terminated");
-        return;
+        err += "fatal error; program terminated";
+        return (output, err);
     }
     let ptr_size: usize = bytecode[0] as usize;
     if ptr_size * 8 > usize::BITS.try_into().expect("max value of usize must be less than the number of bits")
     {
-        eprintln!("error:  this program was compiled for a {}-bit machine, while this is only a {}-bit machine.", 
-            ptr_size * 8, usize::BITS);
-        return;
+        err += format!("error:  this program was compiled for a {}-bit machine, while this is only a {}-bit machine.", 
+            ptr_size * 8, usize::BITS).as_str();
+        return (output, err);
     }
 
     let mut index: usize = 1;
@@ -36,8 +39,8 @@ pub fn run(bytecode: Vec<u8>)
                 {
                     if index + 4 > bytecode.len()
                     {
-                        eprintln!("fatal error; program terminated");
-                        return;
+                        err += "fatal error; program terminated";
+                        return (output, err);
                     }
                     for _i in 0..4
                     {
@@ -50,12 +53,12 @@ pub fn run(bytecode: Vec<u8>)
                     let value: Option<i32> = pop_int(&mut stack);
                     if let Some(value) = value
                     {
-                        println!("{}", value);
+                        output += format!("{}\n", value).as_str();
                     }
-                    else 
+                    else
                     {
-                        eprintln!("fatal error; program terminated");
-                        return;
+                        err += "fatal error; program terminated";
+                        return (output, err);
                     }
                 },
                 OpCodes::MinusInt =>
@@ -68,8 +71,8 @@ pub fn run(bytecode: Vec<u8>)
                     }
                     else 
                     {
-                        eprintln!("fatal error; program terminated");
-                        return;
+                        err += "fatal error; program terminated";
+                        return (output, err);
                     }
                 },
                 OpCodes::AddInt =>
@@ -88,8 +91,8 @@ pub fn run(bytecode: Vec<u8>)
                     }
                     if fail 
                     {
-                        eprintln!("fatal error; program terminated");
-                        return;
+                        err += "fatal error; program terminated";
+                        return (output, err);
                     }
                 },
                 OpCodes::SubtractInt =>
@@ -108,8 +111,8 @@ pub fn run(bytecode: Vec<u8>)
                     }
                     if fail 
                     {
-                        eprintln!("fatal error; program terminated");
-                        return;
+                        err += "fatal error; program terminated";
+                        return (output, err);
                     }
                 },
                 OpCodes::MultiplyInt =>
@@ -128,16 +131,16 @@ pub fn run(bytecode: Vec<u8>)
                     }
                     if fail 
                     {
-                        eprintln!("fatal error; program terminated");
-                        return;
+                        err += "fatal error; program terminated";
+                        return (output, err);
                     }
                 },
                 OpCodes::DivideInt =>
                 {
                     if index + 2 * ptr_size > bytecode.len()
                     {
-                        eprintln!("fatal error; program terminated");
-                        return;
+                        err += "fatal error; program terminated";
+                        return (output, err);
                     }
                     
                     let b: Option<i32> = pop_int(&mut stack);
@@ -164,8 +167,8 @@ pub fn run(bytecode: Vec<u8>)
                                     index += 1;
                                 }
                                 let col: usize = usize::from_le_bytes(bytes);
-                                eprintln!("error (line {line}:{col}): division by 0");
-                                return;
+                                err += format!("error (line {line}:{col}): division by 0").as_str();
+                                return (output, err);
                             }
                             let c: i32 = i32::wrapping_div(a, b);
                             stack.append(&mut c.to_le_bytes().to_vec());
@@ -173,19 +176,20 @@ pub fn run(bytecode: Vec<u8>)
                     }
                     if fail 
                     {
-                        eprintln!("fatal error; program terminated");
-                        return;
+                        err += "fatal error; program terminated";
+                        return (output, err);
                     }
                     index += 2 * ptr_size as usize;
                 }
             }},
             None => 
             { 
-                eprintln!("fatal error; program terminated"); 
-                return;
+                err += "fatal error; program terminated";
+                return (output, err);
             }
         }
     }
+    (output, err)
 }
 
 fn pop_int(stack: &mut Vec<u8>) -> Option<i32>
