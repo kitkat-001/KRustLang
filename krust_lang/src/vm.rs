@@ -6,21 +6,21 @@ use compiler::OpCodes;
 use num_traits::FromPrimitive;
 
 /// Runs the bytecode.
-pub fn run(bytecode: &Vec<u8>) -> (String, String)
+pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Option<String>)
 {
-    let mut output: String = String::new();
-    let mut err: String = String::new();
+    let mut output: Vec<String> = Vec::new();
+    let mut err: Option<String> =None;
 
     if bytecode.len() < 1
     {
-        err += "fatal error; program terminated";
+        err = Some("fatal error; program terminated".to_string());
         return (output, err);
     }
     let ptr_size: usize = bytecode[0] as usize;
     if ptr_size * 8 > usize::BITS.try_into().expect("max value of usize must be less than the number of bits")
     {
-        err += format!("error:  this program was compiled for a {}-bit machine, while this is only a {}-bit machine.", 
-            ptr_size * 8, usize::BITS).as_str();
+        err = Some(format!("error:  this program was compiled for a {}-bit machine, while this is only a {}-bit machine.", 
+            ptr_size * 8, usize::BITS));
         return (output, err);
     }
 
@@ -39,7 +39,7 @@ pub fn run(bytecode: &Vec<u8>) -> (String, String)
                 {
                     if index + 4 > bytecode.len()
                     {
-                        err += "fatal error; program terminated";
+                        err = Some("fatal error; program terminated".to_string());
                         return (output, err);
                     }
                     for _i in 0..4
@@ -53,11 +53,11 @@ pub fn run(bytecode: &Vec<u8>) -> (String, String)
                     let value: Option<i32> = pop_int(&mut stack);
                     if let Some(value) = value
                     {
-                        output += format!("{}\n", value).as_str();
+                        output.push(format!("{}", value));
                     }
                     else
                     {
-                        err += "fatal error; program terminated";
+                        err = Some("fatal error; program terminated".to_string());
                         return (output, err);
                     }
                 },
@@ -71,7 +71,7 @@ pub fn run(bytecode: &Vec<u8>) -> (String, String)
                     }
                     else 
                     {
-                        err += "fatal error; program terminated";
+                        err = Some("fatal error; program terminated".to_string());
                         return (output, err);
                     }
                 },
@@ -91,7 +91,7 @@ pub fn run(bytecode: &Vec<u8>) -> (String, String)
                     }
                     if fail 
                     {
-                        err += "fatal error; program terminated";
+                        err = Some("fatal error; program terminated".to_string());
                         return (output, err);
                     }
                 },
@@ -111,7 +111,7 @@ pub fn run(bytecode: &Vec<u8>) -> (String, String)
                     }
                     if fail 
                     {
-                        err += "fatal error; program terminated";
+                        err = Some("fatal error; program terminated".to_string());
                         return (output, err);
                     }
                 },
@@ -131,7 +131,7 @@ pub fn run(bytecode: &Vec<u8>) -> (String, String)
                     }
                     if fail 
                     {
-                        err += "fatal error; program terminated";
+                        err = Some("fatal error; program terminated".to_string());
                         return (output, err);
                     }
                 },
@@ -139,7 +139,7 @@ pub fn run(bytecode: &Vec<u8>) -> (String, String)
                 {
                     if index + 2 * ptr_size > bytecode.len()
                     {
-                        err += "fatal error; program terminated";
+                        err = Some("fatal error; program terminated".to_string());
                         return (output, err);
                     }
                     
@@ -167,7 +167,7 @@ pub fn run(bytecode: &Vec<u8>) -> (String, String)
                                     index += 1;
                                 }
                                 let col: usize = usize::from_le_bytes(bytes);
-                                err += format!("error (line {line}:{col}): division by 0").as_str();
+                                err=  Some(format!("error (line {line}:{col}): division by 0"));
                                 return (output, err);
                             }
                             let c: i32 = i32::wrapping_div(a, b);
@@ -176,7 +176,7 @@ pub fn run(bytecode: &Vec<u8>) -> (String, String)
                     }
                     if fail 
                     {
-                        err += "fatal error; program terminated";
+                        err = Some("fatal error; program terminated".to_string());
                         return (output, err);
                     }
                     index += 2 * ptr_size as usize;
@@ -184,7 +184,7 @@ pub fn run(bytecode: &Vec<u8>) -> (String, String)
             }},
             None => 
             { 
-                err += "fatal error; program terminated";
+                err = Some("fatal error; program terminated".to_string());
                 return (output, err);
             }
         }

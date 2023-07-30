@@ -22,33 +22,45 @@ fn main() {
         }
         CLIOutput::CLIInfo { file_path, cli_args} =>
         {
-            let output: (String, String) = run(file_path, cli_args);
-            println!("{}", output.0.as_str());
-            eprintln!("{}", output.1.as_str());
+            let output: (Vec<String>, Vec<String>) = run(file_path, cli_args);
+            for string in output.0
+            {
+                println!("{}", string);
+            }
+            for string in output.1
+            {
+                println!("{}", string);
+            }
         }
     }
 }
 
-fn run(file_path: String, cli_args: [u8; 1]) -> (String, String)
+// Runs the code in the file.
+// TODO: Don't save all the printing till the end, instead print when printing should happen.
+fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<String>)
 {
     let lex_output: LexerOutput = lex(&file_path);
     let parse_output: ParserOutput = parse(lex_output);
     let compile_ouput: CompilerOutput = compile(parse_output, cli_args);
-    let mut output: String = String::new();
-    let mut err: String = String::new();
+    let mut output: Vec<String> = Vec::new();
+    let mut err: Vec<String> = Vec::new();
 
     for error in compile_ouput.errors
     {
-        err += format!("{}\n", error).as_str();
+        err.push(error);
     }
     if let Some(bytecode) = compile_ouput.bytecode
     {
-        output += vm::run(&bytecode).0.as_str();
-        err += vm::run(&bytecode).1.as_str();
+        let output_with_err: (Vec<String>, Option<String>) = vm::run(&bytecode);
+        output.append(&mut output_with_err.0.clone());
+        if let Some(err_value) = output_with_err.1
+        {
+            err.push(err_value);
+        }
     }
     else 
     {
-        err += "could not compile due to above errors";
+        err.push("could not compile due to above errors".to_string());
     }
 
     (output, err)
