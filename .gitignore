@@ -17,3 +17,6 @@ target/
 
 # Other things to ignore
 vscode
+
+# Unnecessary test files
+krust_lang/tests/*

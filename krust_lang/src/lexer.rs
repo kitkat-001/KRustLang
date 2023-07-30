@@ -159,8 +159,8 @@ pub fn lex(file_path: &str) -> LexerOutput
             if let TokenType::Error = token.token_type
             {
                 can_compile = false;
-                errors.push(String::from(format!("error (line {line}:{col}): int literal \"{}\" must be at most {}", 
-                    token.to_string(&file_text), 0x8000_0000u32)));
+                errors.push(format!("error (line {line}:{col}): int literal \"{}\" must be at most {}", 
+                    token.to_string(&file_text), 0x8000_0000u32).to_string());
             }
             tokens.push(token);
             index += length;
@@ -176,8 +176,8 @@ pub fn lex(file_path: &str) -> LexerOutput
                 length += 1;
             }
             let token: Token = Token{token_type: TokenType::Error, line, col, start: index, length};
-            errors.push(String::from(format!("error (line {line}:{col}): unrecognized token \"{}\"",
-                token.to_string(&file_text))));
+            errors.push(format!("error (line {line}:{col}): unrecognized token \"{}\"",
+                token.to_string(&file_text)).to_string());
             tokens.push(token);
             can_compile = false;
             index += length;
