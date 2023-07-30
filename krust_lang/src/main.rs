@@ -71,6 +71,8 @@ fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<String>)
 mod tests
 {
     use super::run;
+
+    use proptest::prelude::*;
     use std::fs;
 
     fn test_code(test_name: &str, code: &str, out: Vec<String>, err: Vec<String>)
@@ -138,5 +140,27 @@ mod tests
             format!("-{}", 0x8000_0000u32).as_str(), 
             vec![format!("-{}", 0x8000_0000u32)], 
             Vec::new());
+    }
+
+    proptest! {
+        #[test]
+        fn random_pos_value(value in 0..(0x8000_0000u32-1))
+        {
+            test_code(
+                "random_pos_value", 
+                format!("{value}").as_str(), 
+                vec![format!("{value}")], 
+                Vec::new());
+        }
+
+        #[test]
+        fn random_neg_value(value in 0..0x8000_0000u32)
+        {
+            test_code(
+                "random_neg_value", 
+                format!("-{value}").as_str(), 
+                vec![format!("-{value}")], 
+                Vec::new());
+        }
     }
 }
