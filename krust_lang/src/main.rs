@@ -72,8 +72,10 @@ mod tests
 {
     use super::run;
 
-    use proptest::prelude::*;
     use std::fs;
+
+    use proptest;
+    use proptest::prelude::*;
 
     fn test_code(test_name: &str, code: &str, out: Vec<String>, err: Vec<String>)
     {
@@ -141,25 +143,61 @@ mod tests
             vec![format!("-{}", 0x8000_0000u32)], 
             Vec::new());
     }
-
+    
     proptest! {
         #[test]
-        fn random_pos_value(value in 0..(0x8000_0000u32-1))
+        fn random_value(value in proptest::num::i32::ANY)
         {
             test_code(
-                "random_pos_value", 
+                "random_value", 
                 format!("{value}").as_str(), 
                 vec![format!("{value}")], 
                 Vec::new());
         }
 
         #[test]
-        fn random_neg_value(value in 0..0x8000_0000u32)
+        fn add_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "random_neg_value", 
-                format!("-{value}").as_str(), 
-                vec![format!("-{value}")], 
+                "add_values", 
+                format!("{a}+{b}").as_str(), 
+                vec![format!("{}", i32::wrapping_add(a, b))], 
+                Vec::new());
+        }
+
+        #[test]
+        fn sub_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "sub_values", 
+                format!("{a}-{b}").as_str(), 
+                vec![format!("{}", i32::wrapping_sub(a, b))], 
+                Vec::new());
+        }
+
+        #[test]
+        fn mul_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "mul_values", 
+                format!("{a}*{b}").as_str(), 
+                vec![format!("{}", i32::wrapping_mul(a, b))], 
+                Vec::new());
+        }
+
+        #[test]
+        fn div_values(
+            a in proptest::num::i32::ANY, 
+            b in proptest::num::i32::ANY.prop_filter
+            (
+                "Division by zero is invalid", 
+                |b| *b != 0
+            ))
+        {
+            test_code(
+                "div_values", 
+                format!("{a}/{b}").as_str(), 
+                vec![format!("{}", i32::wrapping_div(a, b))], 
                 Vec::new());
         }
     }
