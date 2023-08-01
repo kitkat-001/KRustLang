@@ -96,7 +96,7 @@ mod tests
             format!("{}", 0x8000_0001u32).as_str(), 
             Vec::new(), 
             vec![
-                format!("error (line 1:1): int literal \"{}\" must be at most {}", 0x8000_0001u32, 0x8000_0000u32).to_string(),
+                format!("error (line 1:1): int literal \"{}\" must be at most {}", 0x8000_0001u32, 0x8000_0000u32),
                 "could not compile due to above errors".to_string()
             ]
         );
@@ -110,7 +110,7 @@ mod tests
             format!("{}", 0x8000_0000u32).as_str(), 
             Vec::new(), 
             vec![
-                format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator", 0x8000_0000u32).to_string(),
+                format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator", 0x8000_0000u32),
                 "could not compile due to above errors".to_string()
             ]
         );
@@ -135,7 +135,7 @@ mod tests
             format!("-{}", 0x8000_0001u32).as_str(), 
             Vec::new(), 
             vec![
-                format!("error (line 1:2): int literal \"{}\" must be at most {}", 0x8000_0001u32, 0x8000_0000u32).to_string(),
+                format!("error (line 1:2): int literal \"{}\" must be at most {}", 0x8000_0001u32, 0x8000_0000u32),
                 "could not compile due to above errors".to_string()
             ]
         );
@@ -151,6 +151,52 @@ mod tests
             Vec::new()
         );
     }
+
+    #[test]
+    fn open_left_paren()
+    {
+        test_code(
+            "open_left_paren",
+            "(",
+            Vec::new(),
+            vec![
+                "error (line 1:2): unexpected end of file".to_string(),
+                "error (line 1:2): expected \')\' following \'(\'".to_string(),
+                "could not compile due to above errors".to_string()
+            ]
+        )
+    }
+
+    #[test]
+    fn open_right_paren()
+    {
+        test_code(
+            "open_right_paren",
+            ")",
+            Vec::new(),
+            vec![
+                "error (line 1:1): unexpected token".to_string(),
+                "error (line 1:2): unexpected end of file".to_string(),
+                "could not compile due to above errors".to_string()
+            ]
+        )
+    }
+
+    #[test]
+    fn empty_parens()
+    {
+        test_code(
+            "empty_parens",
+            "()",
+            Vec::new(),
+            vec![
+                "error (line 1:2): expected expression within parentheses".to_string(),
+                "could not compile due to above errors".to_string()
+            ]
+        )
+    }
+
+
     
     proptest! {
         #[test]
@@ -204,7 +250,8 @@ mod tests
             (
                 "Division by zero is invalid", 
                 |b| *b != 0
-            ))
+            )
+        )
         {
             test_code(
                 "div_values", 
@@ -236,6 +283,36 @@ mod tests
                     format!("error (line 1:{}): unexpected token", format!("{a}").chars().count() + 2),
                     "could not compile due to above errors".to_string()
                 ]
+            );
+        }
+
+        #[test]
+        fn order_of_ops(
+            a in proptest::num::i32::ANY,
+            b in proptest::num::i32::ANY,
+            c in proptest::num::i32::ANY
+        )
+        {
+            test_code(
+                "order_of_ops", 
+                format!("{a}+{b}*{c}").as_str(),
+                vec![format!("{}", i32::wrapping_add(a, i32::wrapping_mul(b, c)))],
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn paren_test(
+            a in proptest::num::i32::ANY,
+            b in proptest::num::i32::ANY,
+            c in proptest::num::i32::ANY
+        )
+        {
+            test_code(
+                "paren_test", 
+                format!("{a}*({b}+{c})").as_str(),
+                vec![format!("{}", i32::wrapping_mul(a, i32::wrapping_add(b, c)))],
+                Vec::new()
             );
         }
     }

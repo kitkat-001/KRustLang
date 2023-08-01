@@ -95,7 +95,7 @@ fn get_primary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut 
         {
             if tokens[*index].token_type == TokenType::RightParen
             {
-                errors.push(format!("error (line {}:{}): expected expression within parenthesis", tokens[*index].line, tokens[*index].col));
+                errors.push(format!("error (line {}:{}): expected expression within parentheses", tokens[*index].line, tokens[*index].col));
                 *can_compile = false;
                 *index += 1;
                 return Expression::Grouping { expr: Box::new(Expression::Null) };
