@@ -20,3 +20,4 @@ vscode
 
 # Unnecessary test files
 krust_lang/tests/*
+krust_lang/test.txt

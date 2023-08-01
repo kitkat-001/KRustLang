@@ -79,7 +79,7 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput
 // Get the expression from the token list.
 fn get_expression(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
 {
-    get_additive(&tokens, errors, can_compile, index)
+    get_additive(tokens, errors, can_compile, index)
 }
 
 // Get a primary expression (literals and grouping expressions).
@@ -130,7 +130,7 @@ fn get_primary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut 
         {
             errors.push(format!("error (line {}:{}): unexpected token", token.line, token.col));
             *can_compile = false;
-            get_primary(tokens, errors, can_compile, index)
+            get_expression(tokens, errors, can_compile, index)
         }
     }
 }

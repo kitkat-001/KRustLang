@@ -97,7 +97,9 @@ mod tests
             Vec::new(), 
             vec![
                 format!("error (line 1:1): int literal \"{}\" must be at most {}", 0x8000_0001u32, 0x8000_0000u32).to_string(),
-                "could not compile due to above errors".to_string()]);
+                "could not compile due to above errors".to_string()
+            ]
+        );
     }
 
     #[test]
@@ -109,7 +111,9 @@ mod tests
             Vec::new(), 
             vec![
                 format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator", 0x8000_0000u32).to_string(),
-                "could not compile due to above errors".to_string()]);
+                "could not compile due to above errors".to_string()
+            ]
+        );
     }
 
     #[test]
@@ -119,7 +123,8 @@ mod tests
             "max_value_pos", 
             format!("{}", 0x8000_0000u32 - 1).as_str(), 
             vec![format!("{}", 0x8000_0000u32 - 1)], 
-            Vec::new());
+            Vec::new()
+        );
     }
 
     #[test]
@@ -131,7 +136,9 @@ mod tests
             Vec::new(), 
             vec![
                 format!("error (line 1:2): int literal \"{}\" must be at most {}", 0x8000_0001u32, 0x8000_0000u32).to_string(),
-                "could not compile due to above errors".to_string()]);
+                "could not compile due to above errors".to_string()
+            ]
+        );
     }
 
     #[test]
@@ -141,7 +148,8 @@ mod tests
             "min_value", 
             format!("-{}", 0x8000_0000u32).as_str(), 
             vec![format!("-{}", 0x8000_0000u32)], 
-            Vec::new());
+            Vec::new()
+        );
     }
     
     proptest! {
@@ -152,7 +160,8 @@ mod tests
                 "random_value", 
                 format!("{value}").as_str(), 
                 vec![format!("{value}")], 
-                Vec::new());
+                Vec::new()
+            );
         }
 
         #[test]
@@ -162,7 +171,8 @@ mod tests
                 "add_values", 
                 format!("{a}+{b}").as_str(), 
                 vec![format!("{}", i32::wrapping_add(a, b))], 
-                Vec::new());
+                Vec::new()
+            );
         }
 
         #[test]
@@ -172,7 +182,8 @@ mod tests
                 "sub_values", 
                 format!("{a}-{b}").as_str(), 
                 vec![format!("{}", i32::wrapping_sub(a, b))], 
-                Vec::new());
+                Vec::new()
+            );
         }
 
         #[test]
@@ -182,7 +193,8 @@ mod tests
                 "mul_values", 
                 format!("{a}*{b}").as_str(), 
                 vec![format!("{}", i32::wrapping_mul(a, b))], 
-                Vec::new());
+                Vec::new()
+            );
         }
 
         #[test]
@@ -198,7 +210,33 @@ mod tests
                 "div_values", 
                 format!("{a}/{b}").as_str(), 
                 vec![format!("{}", i32::wrapping_div(a, b))], 
-                Vec::new());
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn div_by_zero(a in proptest::num::i32::ANY)
+        {
+            test_code(
+                "div_by_zero",
+                format!("{a}/0").as_str(), 
+                Vec::new(),
+                vec![format!("error (line 1:{}): division by 0", format!("{a}").chars().count() + 1)]
+            );
+        }
+
+        #[test]
+        fn double_add(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "double_add",
+                format!("{a}++{b}").as_str(), 
+                Vec::new(),
+                vec![
+                    format!("error (line 1:{}): unexpected token", format!("{a}").chars().count() + 2),
+                    "could not compile due to above errors".to_string()
+                ]
+            );
         }
     }
 }
