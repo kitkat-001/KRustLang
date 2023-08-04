@@ -77,6 +77,7 @@ mod tests
     use proptest;
     use proptest::prelude::*;
 
+    // Runs the given code and checks the output against out and err.
     fn test_code(test_name: &str, code: &str, out: Vec<String>, err: Vec<String>)
     {
         let file_path: String = format!("tests/{test_name}.txt");
