@@ -4,33 +4,33 @@ mod parser;
 mod compiler;
 mod vm;
 
-use cli_reader::{CLIOutput, read_command_line};
+use cli_reader::{CLIInfo, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
 use compiler::{CompilerOutput, compile};
 
 fn main() {
-    let cli_output: CLIOutput = read_command_line();
-    match cli_output
+    let cli_output: Result<CLIInfo, Vec<String>>  = read_command_line();
+    if cli_output.is_err()
     {
-        CLIOutput::Error(errors) =>
+        for error in cli_output.err().expect("checked by if statement")
         {
-            for error in errors
-            {
-                eprintln!("{}", error);
-            }
+            eprintln!("{}", error);
         }
-        CLIOutput::CLIInfo { file_path, cli_args} =>
+    }
+    else
+    {
+        let cli_output: CLIInfo = cli_output.ok().expect("checked by if statement");
+        let output: (Vec<String>, Vec<String>) = run(
+            cli_output.file_path,
+            cli_output.cli_args);
+        for string in output.0
         {
-            let output: (Vec<String>, Vec<String>) = run(file_path, cli_args);
-            for string in output.0
-            {
-                println!("{}", string);
-            }
-            for string in output.1
-            {
-                println!("{}", string);
-            }
+            println!("{}", string);
+        }
+        for string in output.1
+        {
+            println!("{}", string);
         }
     }
 }
