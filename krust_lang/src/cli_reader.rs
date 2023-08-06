@@ -121,7 +121,7 @@ fn get_result(
     multiple_file_error: bool)
     -> Result<CLIInfo, Vec<String>>
 {
-    let file_size: usize = get_file(&file_path, errors, multiple_file_error);
+    let file_size: usize = get_file_size(&file_path, errors, multiple_file_error);
 
     if errors.len() > 0
     {
@@ -133,7 +133,8 @@ fn get_result(
     }
 }
 
-fn get_file(file_path: &Option<String>, errors: &mut Vec<String>, multiple_file_error: bool) -> usize
+// Get the size of the file, if exactly one is given.
+fn get_file_size(file_path: &Option<String>, errors: &mut Vec<String>, multiple_file_error: bool) -> usize
 {
     let mut file_size: usize = 0;
     if let Some(ref path) = file_path
@@ -155,6 +156,7 @@ fn get_file(file_path: &Option<String>, errors: &mut Vec<String>, multiple_file_
     file_size
 }
 
+// Deal with issues relating to compiler flag values.
 fn handle_compiler_flag_issues(
     file_path: &Option<String>, 
     errors: &mut Vec<String>, 
