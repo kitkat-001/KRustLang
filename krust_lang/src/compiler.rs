@@ -1,7 +1,7 @@
 //! The module for compiling source code into byte code.
 
 use crate::{lexer, parser};
-use lexer::TokenType;
+use lexer::{TokenType, Token};
 use parser::{Expression, ParserOutput};
 
 use num_derive::FromPrimitive;
@@ -60,21 +60,7 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
     {
         Expression::Binary { left, op, right } =>
         {
-            bytecode.append(&mut generate_bytecode(*left, ptr_size));
-            bytecode.append(&mut generate_bytecode(*right, ptr_size));
-            match op.token_type
-            {
-                TokenType::Plus => { bytecode.push(OpCodes::AddInt as u8); },
-                TokenType::Minus => { bytecode.push(OpCodes::SubtractInt as u8); },
-                TokenType::Star => { bytecode.push(OpCodes::MultiplyInt as u8); },
-                TokenType::Slash => 
-                {
-                     bytecode.push(OpCodes::DivideInt as u8); 
-                     bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
-                     bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
-                },
-                _ => { panic!("invalid token found at head of binary expression.")}
-            }
+            handle_binary(&mut bytecode, ptr_size, left, op, right)
         }
         Expression::Grouping { expr: child } =>
         {
@@ -82,15 +68,7 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
         }
         Expression::Literal { token } =>
         {
-            if let TokenType::IntLiteral(value) = token.token_type
-            {
-                bytecode.push(OpCodes::PushInt as u8);
-                bytecode.append(&mut value.to_le_bytes().to_vec());
-            }
-            else 
-            {
-                panic!("all literals should have been accounted for");
-            }
+            handle_literal(&mut bytecode, token);
         }
         Expression::Unary { op, expr: child } =>
         {
@@ -105,6 +83,41 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
     bytecode
 }
 
+// Handles binary expressions.
+fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op: Token, right: Box<Expression>)
+{
+    bytecode.append(&mut generate_bytecode(*left, ptr_size));
+    bytecode.append(&mut generate_bytecode(*right, ptr_size));
+    match op.token_type
+    {
+        TokenType::Plus => { bytecode.push(OpCodes::AddInt as u8); },
+        TokenType::Minus => { bytecode.push(OpCodes::SubtractInt as u8); },
+        TokenType::Star => { bytecode.push(OpCodes::MultiplyInt as u8); },
+        TokenType::Slash => 
+        {
+                bytecode.push(OpCodes::DivideInt as u8); 
+                bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
+                bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
+        },
+        _ => { panic!("invalid token found at head of binary expression.")}
+    }
+}
+
+// Handles literal expressions/tokens.
+fn handle_literal(bytecode: &mut Vec<u8>, token: Token)
+{
+    if let TokenType::IntLiteral(value) = token.token_type
+    {
+        bytecode.push(OpCodes::PushInt as u8);
+        bytecode.append(&mut value.to_le_bytes().to_vec());
+    }
+    else 
+    {
+        panic!("all literals should have been accounted for");
+    }
+}
+
+// Converts a usize value to a list of bytes with a length of ptr_size.
 fn usize_to_ptr_size(value: usize, ptr_size: u8) -> Vec<u8>
 {
     let usize_size_bytes: u32 = usize::BITS / 8;
