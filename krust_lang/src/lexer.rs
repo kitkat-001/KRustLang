@@ -1,5 +1,6 @@
 //! The module for lexing the source file, i.e. splitting it up into tokens.
 
+use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::io::Error;
 use std::num::ParseIntError;
@@ -77,116 +78,126 @@ pub fn lex(file_path: &str) -> LexerOutput
     // Loop through each token until the end of the file is found.
     loop
     {
-        let c: Option<char> = file_text.chars().nth(index);
-
-        // EOF
-        if let None = c
-        {
-            tokens.push(Token{token_type: TokenType::EOF, line, col, start: index, length: 0});
-            return LexerOutput{file_text, tokens, errors, can_compile};
-        }
-        let c: char = c.expect("should be valid as error handled earlier");
-
-        // Single character tokens.
-        if c == '+'
-        {
-            tokens.push(Token{token_type : TokenType::Plus, line, col, start : index, length : 1});
-            index += 1;
-            col += 1;
-        }
-        else if c == '-' 
-        {
-            tokens.push(Token{token_type : TokenType::Minus, line, col, start : index, length : 1});
-            index += 1;
-            col += 1;
-        }
-        else if c == '*' 
-        {
-            tokens.push(Token{token_type : TokenType::Star, line, col, start : index, length : 1});
-            index += 1;
-            col += 1;
-        }
-        else if c == '/' 
-        {
-            tokens.push(Token{token_type : TokenType::Slash, line, col, start : index, length : 1});
-            index += 1;
-            col += 1;
-        }
-        else if c == '(' 
-        {
-            tokens.push(Token{token_type : TokenType::LeftParen, line, col, start : index, length : 1});
-            index += 1;
-            col += 1;
-        }
-        else if c == ')' 
-        {
-            tokens.push(Token{token_type : TokenType::RightParen, line, col, start : index, length : 1});
-            index += 1;
-            col += 1;
-        }
-
-        // White space
-        else if c == ' ' || c == '\t' || c == '\n'|| c == '\r'
-        {
-            // Valid ways for writing new lines are "\n", "\r", or "\r\n".
-            if c == '\r' || c == '\n'
-            {
-                line += 1;
-                col = 1;
-                if c == '\r' && file_text.chars().nth(index + 1) == Some('\n')
-                {
-                    index += 1;
-                }
-            }
-            else 
-            {    
-                col += 1;
-            }
-            index += 1;
-        }
-
-        // Numbers
-        else if c >= '0' && c <= '9'
-        {
-            let mut length: usize = 1;
-            while is_digit_option(&file_text.chars().nth(index + length))
-            {
-                length += 1;
-            }
-            let int_literal: Result<u32, ParseIntError> = file_text[index..(index+length)].parse::<u32>();
-            let token_type: TokenType = get_int_literal_token_type(int_literal);
-            let token: Token = Token{token_type, line, col, start: index, length};
-            if let TokenType::Error = token.token_type
-            {
-                can_compile = false;
-                errors.push(format!("error (line {line}:{col}): int literal \"{}\" must be at most {}", 
-                    token.to_string(&file_text), 0x8000_0000u32).to_string());
-            }
-            tokens.push(token);
-            index += length;
-            col += length;
-        }
-
-        // Error tokens.
-        else
-        {
-            let mut length: usize = 1;
-            while !is_token_separator(&file_text.chars().nth(index + length))
-            {
-                length += 1;
-            }
-            let token: Token = Token{token_type: TokenType::Error, line, col, start: index, length};
-            errors.push(format!("error (line {line}:{col}): unrecognized token \"{}\"",
-                token.to_string(&file_text)).to_string());
-            tokens.push(token);
-            can_compile = false;
-            index += length;
-            col += length;
-        }
+        let output: Option<LexerOutput> = get_token(
+            &file_text,
+            &mut tokens,
+            &mut errors,
+            &mut can_compile,
+            &mut index,
+            &mut line,
+            &mut col
+        );
+        if output.is_some() { return output.expect("checked by if statement"); }
     }
 }
 
-/// Converts an integer literal to a token type.
+// Gets the next token in the code.
+fn get_token(
+    file_text: &String, 
+    tokens: &mut Vec<Token>, 
+    errors: &mut Vec<String>,
+    can_compile: &mut bool,
+    index: &mut usize,
+    line: &mut usize,
+    col: &mut usize
+) -> Option<LexerOutput>
+{
+    let c: Option<char> = file_text.chars().nth(*index);
+    let token_dict: HashMap<char, TokenType> = HashMap::from([
+        ('+', TokenType::Plus),
+        ('-', TokenType::Minus),
+        ('*', TokenType::Star),
+        ('/', TokenType::Slash),
+    
+        ('(', TokenType::LeftParen),
+        (')', TokenType::RightParen),
+    ]);
+
+    // EOF
+    if let None = c
+    {
+        tokens.push(Token{token_type: TokenType::EOF, line: *line, col: *col, start: *index, length: 0});
+        return Some(LexerOutput{
+            file_text: file_text.to_string(), 
+            tokens: tokens.clone(), 
+            errors: errors.clone(), 
+            can_compile: *can_compile});
+    }
+    let c: char = c.expect("should be valid as error handled earlier");
+    // Single character tokens.
+    if token_dict.contains_key(&c)
+    {
+        tokens.push(Token{token_type : token_dict[&c], line: *line, col: *col, start : *index, length : 1});
+        *index += 1;
+        *col += 1;
+    }
+    else if c == ' ' || c == '\t' || c == '\n'|| c == '\r'
+    {
+        handle_white_space(file_text, c, line, col, index);
+    }
+    else if c >= '0' && c <= '9'
+    {
+        handle_number(file_text, tokens, errors, can_compile, line, col, index);
+    }
+    else
+    {
+        handle_error(file_text, tokens, errors, can_compile, line, col, index)
+    }
+
+    None
+}
+
+// Handles white space.
+fn handle_white_space(file_text: &String, c: char, line: &mut usize, col: &mut usize, index: &mut usize)
+{
+    // Valid ways for writing new lines are "\n", "\r", or "\r\n".
+    if c == '\r' || c == '\n'
+    {
+        *line += 1;
+        *col = 1;
+        if c == '\r' && file_text.chars().nth(*index + 1) == Some('\n')
+        {
+            *index += 1;
+        }
+    }
+    else 
+    {    
+        *col += 1;
+    }
+    *index += 1;
+}
+
+// Handles numerical tokens.
+fn handle_number(
+    file_text: &String, 
+    tokens: &mut Vec<Token>,
+    errors: &mut Vec<String>,
+    can_compile: &mut bool,  
+    line: &mut usize,
+    col: &mut usize, 
+    index: &mut usize,  
+)
+{
+    let mut length: usize = 1;
+    while is_digit_option(&file_text.chars().nth(*index + length))
+    {
+        length += 1;
+    }
+    let int_literal: Result<u32, ParseIntError> = file_text[*index..(*index+length)].parse::<u32>();
+    let token_type: TokenType = get_int_literal_token_type(int_literal);
+    let token: Token = Token{token_type, line: *line, col: *col, start: *index, length};
+    if let TokenType::Error = token.token_type
+    {
+        *can_compile = false;
+        errors.push(format!("error (line {}:{}): int literal \"{}\" must be at most {}", 
+            *line, *col, token.to_string(&file_text), 0x8000_0000u32).to_string());
+    }
+    tokens.push(token);
+    *index += length;
+    *col += length;
+}
+
+// Converts an integer literal to a token type.
 fn get_int_literal_token_type(int_literal: Result<u32, ParseIntError>) -> TokenType
 {
     if let Err(_) = int_literal
@@ -206,7 +217,7 @@ fn get_int_literal_token_type(int_literal: Result<u32, ParseIntError>) -> TokenT
     }
 }
 
-/// Returns whether or not the character stored in the option is a digit.
+// Returns whether or not the character stored in the option is a digit.
 fn is_digit_option(c_option: &Option<char>) -> bool
 {
     match c_option
@@ -216,8 +227,33 @@ fn is_digit_option(c_option: &Option<char>) -> bool
     }
 }
 
-/// Returns whether or not the character stored in the option is a token seperator. <br/>
-/// Token seperators include whitespace, valid brackets, and the end of the file.
+// Handles unexpected characters/tokens.
+fn handle_error(
+    file_text: &String, 
+    tokens: &mut Vec<Token>,
+    errors: &mut Vec<String>,
+    can_compile: &mut bool,  
+    line: &mut usize,
+    col: &mut usize, 
+    index: &mut usize
+)
+{
+    let mut length: usize = 1;
+    while !is_token_separator(&file_text.chars().nth(*index + length))
+    {
+        length += 1;
+    }
+    let token: Token = Token{token_type: TokenType::Error, line: *line, col: *col, start: *index, length};
+    errors.push(format!("error (line {}:{}): unrecognized token \"{}\"",
+        *line, *col, token.to_string(&file_text)).to_string());
+    tokens.push(token);
+    *can_compile = false;
+    *index += length;
+    *col += length;
+}
+
+// Returns whether or not the character stored in the option is a token seperator. <br/>
+// Token seperators include whitespace, valid brackets, and the end of the file.
 fn is_token_separator(c_option: &Option<char>) -> bool
 {
     match c_option

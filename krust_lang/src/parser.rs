@@ -93,32 +93,7 @@ fn get_primary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut 
         TokenType::Error => Expression::Literal { token },
         TokenType::LeftParen => 
         {
-            if tokens[*index].token_type == TokenType::RightParen
-            {
-                errors.push(format!("error (line {}:{}): expected expression within parentheses", tokens[*index].line, tokens[*index].col));
-                *can_compile = false;
-                *index += 1;
-                return Expression::Grouping { expr: Box::new(Expression::Null) };
-            }
-            let expr: Expression = get_expression(tokens, errors, can_compile, index);
-            if let Expression::EOF = expr
-            {
-                errors.push(format!("error (line {}:{}): expected \')\' following \'(\'", tokens[*index-1].line, tokens[*index-1].col));
-                *can_compile = false;
-                return expr;
-            }
-
-            let expr: Box<Expression> = Box::new(expr);
-            if tokens[*index].token_type == TokenType::RightParen
-            {
-                *index+=1;
-            }
-            else 
-            {
-                errors.push(format!("error (line {}:{}): expected \')\' following \'(\'", tokens[*index].line, tokens[*index].col));
-                *can_compile = false;
-            }
-            Expression::Grouping { expr }
+            handle_paren(tokens, errors, can_compile, index)
         },
         TokenType::EOF =>
         {
@@ -133,6 +108,37 @@ fn get_primary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut 
             get_expression(tokens, errors, can_compile, index)
         }
     }
+}
+
+// Handles primary expressions that use parentheses.
+fn handle_paren(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+{
+    if tokens[*index].token_type == TokenType::RightParen
+    {
+        errors.push(format!("error (line {}:{}): expected expression within parentheses", tokens[*index].line, tokens[*index].col));
+        *can_compile = false;
+        *index += 1;
+        return Expression::Grouping { expr: Box::new(Expression::Null) };
+    }
+    let expr: Expression = get_expression(tokens, errors, can_compile, index);
+    if let Expression::EOF = expr
+    {
+        errors.push(format!("error (line {}:{}): expected \')\' following \'(\'", tokens[*index-1].line, tokens[*index-1].col));
+        *can_compile = false;
+        return expr;
+    }
+
+    let expr: Box<Expression> = Box::new(expr);
+    if tokens[*index].token_type == TokenType::RightParen
+    {
+        *index+=1;
+    }
+    else 
+    {
+        errors.push(format!("error (line {}:{}): expected \')\' following \'(\'", tokens[*index].line, tokens[*index].col));
+        *can_compile = false;
+    }
+    Expression::Grouping { expr }
 }
 
 // Get a unary expression.
@@ -170,7 +176,6 @@ fn get_multiplicative(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile
     }
     expr
 } 
-
 
 // Get a additive expression (+, -).
 fn get_additive(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
