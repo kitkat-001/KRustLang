@@ -30,7 +30,7 @@ fn main() {
         }
         for string in output.1
         {
-            println!("{}", string);
+            eprintln!("{}", string);
         }
     }
 }
@@ -41,15 +41,15 @@ fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<String>)
 {
     let lex_output: LexerOutput = lex(&file_path);
     let parse_output: ParserOutput = parse(lex_output);
-    let compile_ouput: CompilerOutput = compile(parse_output, cli_args);
+    let compile_output: CompilerOutput = compile(parse_output, cli_args);
     let mut output: Vec<String> = Vec::new();
     let mut err: Vec<String> = Vec::new();
 
-    for error in compile_ouput.errors
+    for error in compile_output.errors
     {
         err.push(error);
     }
-    if let Some(bytecode) = compile_ouput.bytecode
+    if let Some(bytecode) = compile_output.bytecode
     {
         let out_err: (Vec<String>, Option<String>) = vm::run(&bytecode);
         output.append(&mut out_err.0.clone());

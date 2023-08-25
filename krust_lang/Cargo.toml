@@ -7,3 +7,9 @@ edition = "2021"
 num-derive = "0.4.0"
 num-traits = "0.2.15"
 proptest = "1.2.0"
+
+[[bin]]
+name = "krustc"
+path = "src/krustc.rs"
+version = "0.1.0"
+edition = "2021"
