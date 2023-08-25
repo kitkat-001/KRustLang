@@ -6,9 +6,9 @@ use parser::{Expression, ParserOutput};
 
 use num_derive::FromPrimitive;
 
-/// The opcodes used in the bytecode.
+/// The OpCode used in the bytecode.
 #[derive(FromPrimitive)]
-pub enum OpCodes
+pub enum OpCode
 {
     PushInt,
     PopInt,
@@ -39,7 +39,7 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 1]) -> CompilerOutput
     {
         let mut byte_list: Vec<u8> = cli_args.to_vec();
         byte_list.append(&mut generate_bytecode(parser_output.expr, cli_args[0]));
-        byte_list.push(OpCodes::PopInt as u8);
+        byte_list.push(OpCode::PopInt as u8);
         if u32::from(cli_args[0]) * 8 < usize::BITS && byte_list.len() >= 1 << (cli_args[0] * 8)
         {
             errors.push("error: could not compile as bytecode was too large.".to_string());
@@ -75,7 +75,7 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
             bytecode.append(&mut generate_bytecode(*child, ptr_size));
             if op.token_type == TokenType::Minus
             {
-                bytecode.push(OpCodes::MinusInt as u8);
+                bytecode.push(OpCode::MinusInt as u8);
             }
         }
         _ => panic!("all expression types should have been accounted for"),
@@ -90,12 +90,12 @@ fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op
     bytecode.append(&mut generate_bytecode(*right, ptr_size));
     match op.token_type
     {
-        TokenType::Plus => { bytecode.push(OpCodes::AddInt as u8); },
-        TokenType::Minus => { bytecode.push(OpCodes::SubtractInt as u8); },
-        TokenType::Star => { bytecode.push(OpCodes::MultiplyInt as u8); },
+        TokenType::Plus => { bytecode.push(OpCode::AddInt as u8); },
+        TokenType::Minus => { bytecode.push(OpCode::SubtractInt as u8); },
+        TokenType::Star => { bytecode.push(OpCode::MultiplyInt as u8); },
         TokenType::Slash => 
         {
-                bytecode.push(OpCodes::DivideInt as u8); 
+                bytecode.push(OpCode::DivideInt as u8); 
                 bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
                 bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
         },
@@ -108,7 +108,7 @@ fn handle_literal(bytecode: &mut Vec<u8>, token: Token)
 {
     if let TokenType::IntLiteral(value) = token.token_type
     {
-        bytecode.push(OpCodes::PushInt as u8);
+        bytecode.push(OpCode::PushInt as u8);
         bytecode.append(&mut value.to_le_bytes().to_vec());
     }
     else 
