@@ -3,8 +3,11 @@ mod lexer;
 mod parser;
 mod compiler;
 
-use std::fs::File;
+use std::env::{current_dir, set_current_dir};
+use std::fs::{File, rename};
 use std::io::{prelude::*, Error};
+use std::path::PathBuf;
+use std::process::Command;
 use cli_reader::{CLIInfo, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
@@ -31,21 +34,35 @@ fn main() {
         }
         if let Some(bytecode) = compiler_output.bytecode
         {
-            let file: Result<File, Error> = File::create(format!("{}/../program.rs", file!()));
-            if file.is_err()
+            let file_path: String = cli_output.file_path.clone().strip_suffix("txt")
+                    .expect("file name is more than just suffix")
+                    .to_string() + "exe";
+            let result: Result<(), Error> = create_compiled_exe(&bytecode, &file_path);
+            if let Err(_) = result
             {
-                eprintln!("fatal error: could not create executable");
-                return;
+                eprintln!("!fatal error, could not compile");
             }
-            let result: Result<(), Error> = file.expect("checked by if statement").write_all(create_code(&bytecode).as_bytes());
-            if result.is_err()
-            {
-                eprintln!("fatal error: could not create executable");
-                return;
-            }
-
         }
     }
+}
+
+// Create the exe.
+fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &String) -> Result<(), Error>
+{
+    let mut file: File = File::create(concat!(env!("CARGO_MANIFEST_DIR"), "/", "src/program.rs"))?;
+    file.write_all(create_code(bytecode).as_bytes())?;
+    let curr_dir: PathBuf = current_dir()?;
+    set_current_dir(env!("CARGO_MANIFEST_DIR"))?;
+    Command::new("cargo").arg("build").output()?;
+    rename(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/", "target/debug/program.exe"), 
+        curr_dir.to_str().expect("should have a string value").to_string() + "/" 
+            + file_path.as_str()
+    )?;
+    let mut file: File = File::create(concat!(env!("CARGO_MANIFEST_DIR"), "/", "src/program.rs"))?;
+    file.write_all("fn main() {}".as_bytes())?;
+    Command::new("cargo").arg("build").output()?;
+    Ok(())
 }
 
 // Produces bytecode from the file.
@@ -59,7 +76,10 @@ fn generate_bytecode(file_path: &String, cli_args: [u8;1]) -> CompilerOutput
 // Creates the rust code that can be compiled into an executable.
 fn create_code(bytecode: &Vec<u8>) -> String
 {
-    format!("mod vm;
+    format!("mod lexer;
+mod parser;
+mod compiler;
+mod vm;
     
 fn main(){{
     let bytecode: Vec<u8> = vec!{:?};

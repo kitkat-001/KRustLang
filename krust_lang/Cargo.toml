@@ -13,3 +13,9 @@ name = "krustc"
 path = "src/krustc.rs"
 version = "0.1.0"
 edition = "2021"
+
+[[bin]]
+name = "program"
+path = "src/program.rs"
+version = "0.1.0"
+edition = "2021"
