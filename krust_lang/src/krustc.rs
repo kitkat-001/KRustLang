@@ -40,7 +40,7 @@ fn main() {
             let result: Result<(), Error> = create_compiled_exe(&bytecode, &file_path);
             if let Err(_) = result
             {
-                eprintln!("!fatal error, could not compile");
+                eprintln!("!fatal error; could not compile");
             }
         }
     }
