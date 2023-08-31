@@ -46,6 +46,14 @@ fn main() {
     }
 }
 
+// Produces bytecode from the file.
+fn generate_bytecode(file_path: &String, cli_args: [u8;1]) -> CompilerOutput
+{
+    let lex_output: LexerOutput = lex(file_path);
+    let parse_output: ParserOutput = parse(lex_output);
+    compile(parse_output, cli_args)
+}
+
 // Create the exe.
 fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &String) -> Result<(), Error>
 {
@@ -63,14 +71,6 @@ fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &String) -> Result<(), Err
     file.write_all("fn main() {}".as_bytes())?;
     Command::new("cargo").arg("build").output()?;
     Ok(())
-}
-
-// Produces bytecode from the file.
-fn generate_bytecode(file_path: &String, cli_args: [u8;1]) -> CompilerOutput
-{
-    let lex_output: LexerOutput = lex(file_path);
-    let parse_output: ParserOutput = parse(lex_output);
-    compile(parse_output, cli_args)
 }
 
 // Creates the rust code that can be compiled into an executable.
