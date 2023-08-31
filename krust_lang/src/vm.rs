@@ -1,7 +1,9 @@
 //! The module for the virtual machine used by the language.
 
 use crate::compiler;
+use crate::math;
 use compiler::OpCode;
+use math::shift_int;
 
 use num_traits::FromPrimitive;
 
@@ -87,6 +89,8 @@ fn match_op(
         OpCode::MultiplyInt => multiply_int(stack, err),
         OpCode::DivideInt => divide_int(bytecode, stack, index, err, ptr_size),
         OpCode::ModuloInt => modulo_int(bytecode, stack, index, err, ptr_size),
+        OpCode::LeftShiftInt => left_shift_int(stack, err),
+        OpCode::RightShiftInt => right_shift_int(stack, err),
     };
     err.is_some()
 }
@@ -287,6 +291,48 @@ fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: 
         *err = Some("fatal error; program terminated".to_string());
     }
     *index += 2 * ptr_size as usize;
+}
+
+// Left shifts an int by an int
+fn left_shift_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+{
+    let b: Option<i32> = pop_int_from_stack(stack);
+    let a: Option<i32> = pop_int_from_stack(stack);
+    let mut fail: bool = true;
+    if let Some(a) = a
+    {
+        if let Some(b) = b
+        {   
+            fail = false;
+            let c: i32 = shift_int(a, b);
+            stack.append(&mut c.to_le_bytes().to_vec());
+        }
+    }
+    if fail 
+    {
+        *err = Some("fatal error; program terminated".to_string());
+    }
+}
+
+// Left shifts an int by an int
+fn right_shift_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+{
+    let b: Option<i32> = pop_int_from_stack(stack);
+    let a: Option<i32> = pop_int_from_stack(stack);
+    let mut fail: bool = true;
+    if let Some(a) = a
+    {
+        if let Some(b) = b
+        {   
+            fail = false;
+            let c: i32 = math::shift_int(a, -b);
+            stack.append(&mut c.to_le_bytes().to_vec());
+        }
+    }
+    if fail 
+    {
+        *err = Some("fatal error; program terminated".to_string());
+    }
 }
 
 // Removes an integer from the stack if possible and returns it.

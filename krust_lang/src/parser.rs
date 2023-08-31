@@ -79,7 +79,7 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput
 // Get the expression from the token list.
 fn get_expression(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
 {
-    get_additive(tokens, errors, can_compile, index)
+    get_shift(tokens, errors, can_compile, index)
 }
 
 // Get a primary expression (literals and grouping expressions).
@@ -198,6 +198,28 @@ fn get_additive(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut
     }
     expr
 } 
+
+// Get a shift expression (<<, >>).
+fn get_shift(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+{
+    let mut expr: Expression = get_additive(tokens, errors, can_compile, index);
+    while !expr.is_eof() &&
+        (tokens[*index].token_type == TokenType::LeftShift 
+            || tokens[*index].token_type == TokenType::RightShift)
+    {
+        let op: Token = tokens[*index];
+        *index += 1;
+        let right: Expression = get_additive(tokens, errors, can_compile, index);
+        let is_eof: bool = right.is_eof();
+        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
+        if is_eof
+        {
+            return expr;
+        }
+    }
+    expr
+} 
+
 
 // Simplify and correct the AST.
 fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, errors: &mut Vec<String>, can_compile: &mut bool)

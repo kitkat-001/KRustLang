@@ -20,6 +20,9 @@ pub enum OpCode
     MultiplyInt,
     DivideInt,
     ModuloInt,
+
+    LeftShiftInt,
+    RightShiftInt,
 }
 
 /// The output given by the compiler.
@@ -106,6 +109,8 @@ fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op
                 bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
                 bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
         },
+        TokenType::LeftShift => { bytecode.push(OpCode::LeftShiftInt as u8); },
+        TokenType::RightShift => { bytecode.push(OpCode::RightShiftInt as u8); },
         _ => { panic!("invalid token found at head of binary expression.")}
     }
 }

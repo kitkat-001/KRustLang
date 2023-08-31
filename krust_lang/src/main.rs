@@ -4,6 +4,8 @@ mod parser;
 mod compiler;
 mod vm;
 
+mod math;
+
 use cli_reader::{CLIInfo, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
@@ -70,6 +72,7 @@ fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<String>)
 #[cfg(test)]
 mod tests
 {
+    use crate::math;
     use super::run;
 
     use std::fs;
@@ -196,8 +199,6 @@ mod tests
             ]
         )
     }
-
-
     
     proptest! {
         #[test]
@@ -273,6 +274,7 @@ mod tests
             );
         }
 
+        #[test]
         fn mod_values(
             a in proptest::num::i32::ANY, 
             b in proptest::num::i32::ANY.prop_filter
@@ -298,6 +300,28 @@ mod tests
                 format!("{a}%0").as_str(), 
                 Vec::new(),
                 vec![format!("error (line 1:{}): modulo by 0", format!("{a}").chars().count() + 1)]
+            );
+        }
+
+        #[test]
+        fn left_shift_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "left_shift_values", 
+                format!("{a}<<{b}").as_str(), 
+                vec![format!("{}", math::shift_int(a, b))], 
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn right_shift_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "right_shift_values", 
+                format!("{a}>>{b}").as_str(), 
+                vec![format!("{}", math::shift_int(a, i32::wrapping_neg(b)))], 
+                Vec::new()
             );
         }
 

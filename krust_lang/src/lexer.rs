@@ -27,6 +27,9 @@ pub enum TokenType
     Plus, Minus, Star, Slash, Percent,
     LeftParen, RightParen,
 
+    // Multi-character tokens.
+    LeftShift, RightShift,
+
     // Literals
     IntLiteral(u32),
 
@@ -136,6 +139,7 @@ fn get_token(
     {
         handle_white_space(file_text, c, line, col, index);
     }
+    else if handle_shift(file_text, tokens, line, col, index) {}
     else if c >= '0' && c <= '9'
     {
         handle_number(file_text, tokens, errors, can_compile, line, col, index);
@@ -166,6 +170,53 @@ fn handle_white_space(file_text: &String, c: char, line: &mut usize, col: &mut u
         *col += 1;
     }
     *index += 1;
+}
+
+// Handles shift tokens.
+fn handle_shift(
+    file_text: &String, 
+    tokens: &mut Vec<Token>,
+    line: &mut usize,
+    col: &mut usize, 
+    index: &mut usize,  
+) -> bool
+{
+    let c: Option<char> = file_text.chars().nth(*index);
+    if c == Some('<')
+    {
+        let c: Option<char> = file_text.chars().nth(*index);
+        if c == Some('<')
+        {
+            let token: Token = Token{
+                token_type: TokenType::LeftShift, 
+                line: *line, 
+                col: *col,
+                start: *index, 
+                length: 2};
+            tokens.push(token);
+            *index += 2;
+            *col += 2;
+            return true;
+        }
+    }
+    else if c == Some('>')
+    {
+        let c: Option<char> = file_text.chars().nth(*index);
+        if c == Some('>')
+        {
+            let token: Token = Token{
+                token_type: TokenType::RightShift, 
+                line: *line,
+                col: *col,
+                start: *index, 
+                length: 2};
+            tokens.push(token);
+            *index += 2;
+            *col += 2;
+            return true;
+        }
+    }
+    false
 }
 
 // Handles numerical tokens.
