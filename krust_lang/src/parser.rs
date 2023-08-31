@@ -144,7 +144,7 @@ fn handle_paren(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut
 // Get a unary expression.
 fn get_unary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
 {
-    if tokens[*index].token_type == TokenType::Minus
+    if tokens[*index].token_type == TokenType::Minus || tokens[*index].token_type == TokenType::Tilde
     {
         let op: Token = tokens[*index];
         *index += 1;

@@ -89,6 +89,7 @@ fn match_op(
         OpCode::MultiplyInt => multiply_int(stack, err),
         OpCode::DivideInt => divide_int(bytecode, stack, index, err, ptr_size),
         OpCode::ModuloInt => modulo_int(bytecode, stack, index, err, ptr_size),
+        OpCode::ComplementInt => complement_int(stack, err),
         OpCode::LeftShiftInt => left_shift_int(stack, err),
         OpCode::RightShiftInt => right_shift_int(stack, err),
     };
@@ -292,6 +293,22 @@ fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: 
     }
     *index += 2 * ptr_size as usize;
 }
+
+// Finds the complement of an int.
+fn complement_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+{
+    let value: Option<i32> = pop_int_from_stack(stack);
+    if let Some(value) = value
+    {
+        let value: i32 = !value;
+        stack.append(&mut value.to_le_bytes().to_vec());
+    }
+    else 
+    {
+        *err = Some("fatal error; program terminated".to_string());
+    }
+}
+
 
 // Left shifts an int by an int
 fn left_shift_int(stack: &mut Vec<u8>, err: &mut Option<String>)

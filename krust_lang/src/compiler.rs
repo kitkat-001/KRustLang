@@ -21,6 +21,7 @@ pub enum OpCode
     DivideInt,
     ModuloInt,
 
+    ComplementInt,
     LeftShiftInt,
     RightShiftInt,
 }
@@ -80,6 +81,10 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
             if op.token_type == TokenType::Minus
             {
                 bytecode.push(OpCode::MinusInt as u8);
+            }
+            if op.token_type == TokenType::Tilde
+            {
+                bytecode.push(OpCode::ComplementInt as u8);
             }
         }
         _ => panic!("all expression types should have been accounted for"),

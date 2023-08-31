@@ -304,6 +304,17 @@ mod tests
         }
 
         #[test]
+        fn complement_value(a in proptest::num::i32::ANY)
+        {
+            test_code(
+                "complement_value", 
+                format!("~{a}").as_str(), 
+                vec![format!("{}", !a)], 
+                Vec::new()
+            );
+        }
+
+        #[test]
         fn left_shift_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(

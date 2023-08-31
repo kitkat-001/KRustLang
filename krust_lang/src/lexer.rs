@@ -25,7 +25,7 @@ pub enum TokenType
 {
     // Single character tokens.
     Plus, Minus, Star, Slash, Percent,
-    LeftParen, RightParen,
+    LeftParen, RightParen, Tilde,
 
     // Multi-character tokens.
     LeftShift, RightShift,
@@ -112,6 +112,7 @@ fn get_token(
         ('*', TokenType::Star),
         ('/', TokenType::Slash),
         ('%', TokenType::Percent),
+        ('~', TokenType::Tilde),
     
         ('(', TokenType::LeftParen),
         (')', TokenType::RightParen),
