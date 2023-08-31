@@ -86,6 +86,7 @@ fn match_op(
         OpCode::SubtractInt => subtract_int(stack, err),
         OpCode::MultiplyInt => multiply_int(stack, err),
         OpCode::DivideInt => divide_int(bytecode, stack, index, err, ptr_size),
+        OpCode::ModuloInt => modulo_int(bytecode, stack, index, err, ptr_size),
     };
     err.is_some()
 }
@@ -232,6 +233,52 @@ fn divide_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: 
                 return;
             }
             let c: i32 = i32::wrapping_div(a, b);
+            stack.append(&mut c.to_le_bytes().to_vec());
+        }
+    }
+    if fail 
+    {
+        *err = Some("fatal error; program terminated".to_string());
+    }
+    *index += 2 * ptr_size as usize;
+}
+
+// Gets the modulo of two ints. Reports an error if the second int is zero.
+fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: &mut Option<String>, ptr_size: usize)
+{
+    if *index + 2 * ptr_size > bytecode.len()
+    {
+        *err = Some("fatal error; program terminated".to_string());
+    }
+    
+    let b: Option<i32> = pop_int_from_stack(stack);
+    let a: Option<i32> = pop_int_from_stack(stack);
+    let mut fail: bool = true;
+    if let Some(a) = a
+    {
+        if let Some(b) = b
+        {   
+            fail = false;
+            if b == 0
+            {
+                let mut bytes : [u8; (usize::BITS / 8) as usize] = [0; (usize::BITS / 8) as usize];
+                for i in 0..ptr_size
+                {
+                    bytes[i] = bytecode[*index];
+                    *index += 1;
+                }
+                let line: usize = usize::from_le_bytes(bytes);
+                bytes = [0; (usize::BITS / 8) as usize];
+                for i in 0..ptr_size
+                {
+                    bytes[i] = bytecode[*index];
+                    *index += 1;
+                }
+                let col: usize = usize::from_le_bytes(bytes);
+                *err =  Some(format!("error (line {line}:{col}): modulo by 0"));
+                return;
+            }
+            let c: i32 = i32::wrapping_rem_euclid(a, b);
             stack.append(&mut c.to_le_bytes().to_vec());
         }
     }

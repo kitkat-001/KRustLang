@@ -162,7 +162,9 @@ fn get_multiplicative(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile
 {
     let mut expr: Expression = get_unary(tokens, errors, can_compile, index);
     while !expr.is_eof() &&
-        (tokens[*index].token_type == TokenType::Star || tokens[*index].token_type == TokenType::Slash)
+        (tokens[*index].token_type == TokenType::Star 
+            || tokens[*index].token_type == TokenType::Slash
+            || tokens[*index].token_type == TokenType::Percent)
     {
         let op: Token = tokens[*index];
         *index += 1;

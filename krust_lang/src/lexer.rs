@@ -24,7 +24,7 @@ pub struct Token
 pub enum TokenType
 {
     // Single character tokens.
-    Plus, Minus, Star, Slash,
+    Plus, Minus, Star, Slash, Percent,
     LeftParen, RightParen,
 
     // Literals
@@ -108,6 +108,7 @@ fn get_token(
         ('-', TokenType::Minus),
         ('*', TokenType::Star),
         ('/', TokenType::Slash),
+        ('%', TokenType::Percent),
     
         ('(', TokenType::LeftParen),
         (')', TokenType::RightParen),

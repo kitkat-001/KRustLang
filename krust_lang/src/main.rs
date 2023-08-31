@@ -273,6 +273,34 @@ mod tests
             );
         }
 
+        fn mod_values(
+            a in proptest::num::i32::ANY, 
+            b in proptest::num::i32::ANY.prop_filter
+            (
+                "Modulo by zero is invalid", 
+                |b| *b != 0
+            )
+        )
+        {
+            test_code(
+                "mod_values", 
+                format!("{a}%{b}").as_str(), 
+                vec![format!("{}", i32::wrapping_rem_euclid(a, b))], 
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn mod_by_zero(a in proptest::num::i32::ANY)
+        {
+            test_code(
+                "mod_by_zero",
+                format!("{a}%0").as_str(), 
+                Vec::new(),
+                vec![format!("error (line 1:{}): modulo by 0", format!("{a}").chars().count() + 1)]
+            );
+        }
+
         #[test]
         fn double_add(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {

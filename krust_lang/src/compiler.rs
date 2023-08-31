@@ -19,6 +19,7 @@ pub enum OpCode
     SubtractInt,
     MultiplyInt,
     DivideInt,
+    ModuloInt,
 }
 
 /// The output given by the compiler.
@@ -96,6 +97,12 @@ fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op
         TokenType::Slash => 
         {
                 bytecode.push(OpCode::DivideInt as u8); 
+                bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
+                bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
+        },
+        TokenType::Percent => 
+        {
+                bytecode.push(OpCode::ModuloInt as u8); 
                 bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
                 bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
         },
