@@ -79,7 +79,7 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput
 // Get the expression from the token list.
 fn get_expression(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
 {
-    get_shift(tokens, errors, can_compile, index)
+    get_or(tokens, errors, can_compile, index)
 }
 
 // Get a primary expression (literals and grouping expressions).
@@ -220,6 +220,65 @@ fn get_shift(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bo
     expr
 } 
 
+// Gets a bitwise and expression.
+fn get_and(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+{
+    let mut expr: Expression = get_shift(tokens, errors, can_compile, index);
+    while !expr.is_eof() &&
+        (tokens[*index].token_type == TokenType::Ampersand)
+    {
+        let op: Token = tokens[*index];
+        *index += 1;
+        let right: Expression = get_shift(tokens, errors, can_compile, index);
+        let is_eof: bool = right.is_eof();
+        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
+        if is_eof
+        {
+            return expr;
+        }
+    }
+    expr
+} 
+
+// Gets a bitwise xor expression.
+fn get_xor(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+{
+    let mut expr: Expression = get_and(tokens, errors, can_compile, index);
+    while !expr.is_eof() &&
+        (tokens[*index].token_type == TokenType::Caret)
+    {
+        let op: Token = tokens[*index];
+        *index += 1;
+        let right: Expression = get_and(tokens, errors, can_compile, index);
+        let is_eof: bool = right.is_eof();
+        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
+        if is_eof
+        {
+            return expr;
+        }
+    }
+    expr
+} 
+
+// Gets a bitwise or expression.
+fn get_or(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+{
+    let mut expr: Expression = get_xor(tokens, errors, can_compile, index);
+    while !expr.is_eof() &&
+        (tokens[*index].token_type == TokenType::Bar)
+    {
+        let op: Token = tokens[*index];
+        *index += 1;
+        let right: Expression = get_xor(tokens, errors, can_compile, index);
+        let is_eof: bool = right.is_eof();
+        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
+        if is_eof
+        {
+            return expr;
+        }
+    }
+    expr
+} 
 
 // Simplify and correct the AST.
 fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, errors: &mut Vec<String>, can_compile: &mut bool)

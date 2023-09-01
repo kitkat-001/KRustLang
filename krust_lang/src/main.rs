@@ -337,6 +337,39 @@ mod tests
         }
 
         #[test]
+        fn and_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "and_values", 
+                format!("{a} & {b}").as_str(), 
+                vec![format!("{}", a & b)], 
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn xor_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "xor_values", 
+                format!("{a} ^ {b}").as_str(), 
+                vec![format!("{}", a ^ b)], 
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn or_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "or_values", 
+                format!("{a} | {b}").as_str(), 
+                vec![format!("{}", a | b)], 
+                Vec::new()
+            );
+        }
+
+        #[test]
         fn double_add(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
@@ -364,6 +397,39 @@ mod tests
                 Vec::new()
             );
         }
+
+        #[test]
+        fn bitwise_order_of_ops(
+            a in proptest::num::i32::ANY,
+            b in proptest::num::i32::ANY,
+            c in proptest::num::i32::ANY,
+            d in proptest::num::i32::ANY
+        )
+        {
+            test_code(
+                "bitwise_order_of_ops", 
+                format!("a | b ^ c & d").as_str(),
+                vec![format!("{}", a | (b ^ (c & d)))],
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn mixed_order_of_ops(
+            a in proptest::num::i32::ANY,
+            b in proptest::num::i32::ANY,
+            c in proptest::num::i32::ANY,
+            d in proptest::num::i32::ANY
+        )
+        {
+            test_code(
+                "bitwise_order_of_ops", 
+                format!("a | b ^ c & d").as_str(),
+                vec![format!("{}", a | (b ^ (c & d)))],
+                Vec::new()
+            );
+        }
+
 
         #[test]
         fn paren_test(

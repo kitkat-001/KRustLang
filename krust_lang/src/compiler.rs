@@ -22,8 +22,13 @@ pub enum OpCode
     ModuloInt,
 
     ComplementInt,
+
     LeftShiftInt,
     RightShiftInt,
+
+    AndInt,
+    XorInt,
+    OrInt
 }
 
 /// The output given by the compiler.
@@ -114,8 +119,13 @@ fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op
                 bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
                 bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
         },
+
         TokenType::LeftShift => { bytecode.push(OpCode::LeftShiftInt as u8); },
         TokenType::RightShift => { bytecode.push(OpCode::RightShiftInt as u8); },
+        
+        TokenType::Ampersand => { bytecode.push(OpCode::AndInt as u8); },
+        TokenType::Caret => { bytecode.push(OpCode::XorInt as u8); },
+        TokenType::Bar => { bytecode.push(OpCode::OrInt as u8); },
         _ => { panic!("invalid token found at head of binary expression.")}
     }
 }

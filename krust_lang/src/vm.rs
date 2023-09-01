@@ -92,6 +92,9 @@ fn match_op(
         OpCode::ComplementInt => complement_int(stack, err),
         OpCode::LeftShiftInt => left_shift_int(stack, err),
         OpCode::RightShiftInt => right_shift_int(stack, err),
+        OpCode::AndInt => and_int(stack, err),
+        OpCode::XorInt => xor_int(stack, err),
+        OpCode::OrInt => or_int(stack, err),
     };
     err.is_some()
 }
@@ -343,6 +346,69 @@ fn right_shift_int(stack: &mut Vec<u8>, err: &mut Option<String>)
         {   
             fail = false;
             let c: i32 = math::shift_int(a, -b);
+            stack.append(&mut c.to_le_bytes().to_vec());
+        }
+    }
+    if fail 
+    {
+        *err = Some("fatal error; program terminated".to_string());
+    }
+}
+
+// Bitwise ands two ints.
+fn and_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+{
+    let b: Option<i32> = pop_int_from_stack(stack);
+    let a: Option<i32> = pop_int_from_stack(stack);
+    let mut fail: bool = true;
+    if let Some(a) = a
+    {
+        if let Some(b) = b
+        {   
+            fail = false;
+            let c: i32 = a & b;
+            stack.append(&mut c.to_le_bytes().to_vec());
+        }
+    }
+    if fail 
+    {
+        *err = Some("fatal error; program terminated".to_string());
+    }
+}
+
+// Bitwise xors two ints.
+fn xor_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+{
+    let b: Option<i32> = pop_int_from_stack(stack);
+    let a: Option<i32> = pop_int_from_stack(stack);
+    let mut fail: bool = true;
+    if let Some(a) = a
+    {
+        if let Some(b) = b
+        {   
+            fail = false;
+            let c: i32 = a ^ b;
+            stack.append(&mut c.to_le_bytes().to_vec());
+        }
+    }
+    if fail 
+    {
+        *err = Some("fatal error; program terminated".to_string());
+    }
+}
+
+// Bitwise ors two ints.
+fn or_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+{
+    let b: Option<i32> = pop_int_from_stack(stack);
+    let a: Option<i32> = pop_int_from_stack(stack);
+    let mut fail: bool = true;
+    if let Some(a) = a
+    {
+        if let Some(b) = b
+        {   
+            fail = false;
+            let c: i32 = a | b;
             stack.append(&mut c.to_le_bytes().to_vec());
         }
     }
