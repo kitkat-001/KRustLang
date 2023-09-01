@@ -5,6 +5,7 @@ mod compiler;
 mod vm;
 
 mod math;
+mod trie;
 
 use cli_reader::{CLIInfo, read_command_line};
 use lexer::{LexerOutput, lex};
