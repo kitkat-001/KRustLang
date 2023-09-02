@@ -5,6 +5,7 @@ mod compiler;
 mod vm;
 
 mod math;
+mod error;
 mod trie;
 
 use cli_reader::{CLIInfo, read_command_line};
@@ -300,7 +301,7 @@ mod tests
                 "mod_by_zero",
                 format!("{a}%0").as_str(), 
                 Vec::new(),
-                vec![format!("error (line 1:{}): modulo by 0", format!("{a}").chars().count() + 1)]
+                vec![format!("error (line 1:{}): division by 0", format!("{a}").chars().count() + 1)]
             );
         }
 
@@ -409,7 +410,7 @@ mod tests
         {
             test_code(
                 "bitwise_order_of_ops", 
-                format!("a | b ^ c & d").as_str(),
+                format!("{a} | {b} ^ {c} & {d}").as_str(),
                 vec![format!("{}", a | (b ^ (c & d)))],
                 Vec::new()
             );
@@ -419,14 +420,13 @@ mod tests
         fn mixed_order_of_ops(
             a in proptest::num::i32::ANY,
             b in proptest::num::i32::ANY,
-            c in proptest::num::i32::ANY,
-            d in proptest::num::i32::ANY
+            c in proptest::num::i32::ANY
         )
         {
             test_code(
-                "bitwise_order_of_ops", 
-                format!("a | b ^ c & d").as_str(),
-                vec![format!("{}", a | (b ^ (c & d)))],
+                "mixed_order_of_ops", 
+                format!("{a} & {b} + {c}").as_str(),
+                vec![format!("{}", a  & i32::wrapping_add(b, c))],
                 Vec::new()
             );
         }

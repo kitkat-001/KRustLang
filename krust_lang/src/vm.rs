@@ -283,7 +283,7 @@ fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: 
                     *index += 1;
                 }
                 let col: usize = usize::from_le_bytes(bytes);
-                *err =  Some(format!("error (line {line}:{col}): modulo by 0"));
+                *err =  Some(format!("error (line {line}:{col}): division by 0"));
                 return;
             }
             let c: i32 = i32::wrapping_rem_euclid(a, b);

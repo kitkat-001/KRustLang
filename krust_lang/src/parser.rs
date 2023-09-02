@@ -68,7 +68,7 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput
     let expr: Expression = get_expression(&tokens.clone(), &mut errors, &mut can_compile, &mut index);
     if index < tokens.len() && tokens[index].token_type != TokenType::EOF
     {
-        errors.push(format!("error (line {}:{}): expected EOF", tokens[index].line, tokens[index].col));
+        errors.push(format!("error (line {}:{}): expected end of file", tokens[index].line, tokens[index].col));
         can_compile = false;
     }
     improve_ast(Box::new(expr.clone()), None, &mut errors, &mut can_compile);
