@@ -6,7 +6,6 @@ mod vm;
 
 mod math;
 mod error;
-mod trie;
 
 use cli_reader::{CLIInfo, read_command_line};
 use lexer::{LexerOutput, lex};
@@ -64,7 +63,7 @@ fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<String>)
     }
     else 
     {
-        err.push("could not compile due to above errors".to_string());
+        err.push("could not compile due to above errors.".to_string());
     }
 
     (output, err)
@@ -102,8 +101,8 @@ mod tests
             format!("{}", 0x8000_0001u32).as_str(), 
             Vec::new(), 
             vec![
-                format!("error (line 1:1): int literal \"{}\" must be at most {}", 0x8000_0001u32, 0x8000_0000u32),
-                "could not compile due to above errors".to_string()
+                format!("error (line 1:1): int literal \"{}\" must be at most {}.", 0x8000_0001u32, 0x8000_0000u32),
+                "could not compile due to above errors.".to_string()
             ]
         );
     }
@@ -116,8 +115,8 @@ mod tests
             format!("{}", 0x8000_0000u32).as_str(), 
             Vec::new(), 
             vec![
-                format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator", 0x8000_0000u32),
-                "could not compile due to above errors".to_string()
+                format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000u32),
+                "could not compile due to above errors.".to_string()
             ]
         );
     }
@@ -141,8 +140,8 @@ mod tests
             format!("-{}", 0x8000_0001u32).as_str(), 
             Vec::new(), 
             vec![
-                format!("error (line 1:2): int literal \"{}\" must be at most {}", 0x8000_0001u32, 0x8000_0000u32),
-                "could not compile due to above errors".to_string()
+                format!("error (line 1:2): int literal \"{}\" must be at most {}.", 0x8000_0001u32, 0x8000_0000u32),
+                "could not compile due to above errors.".to_string()
             ]
         );
     }
@@ -166,9 +165,9 @@ mod tests
             "(",
             Vec::new(),
             vec![
-                "error (line 1:2): unexpected end of file".to_string(),
-                "error (line 1:2): expected \')\' following \'(\'".to_string(),
-                "could not compile due to above errors".to_string()
+                "error (line 1:2): unexpected end of file.".to_string(),
+                "error (line 1:2): expected \')\' following \'(\'.".to_string(),
+                "could not compile due to above errors.".to_string()
             ]
         )
     }
@@ -181,9 +180,9 @@ mod tests
             ")",
             Vec::new(),
             vec![
-                "error (line 1:1): unexpected token".to_string(),
-                "error (line 1:2): unexpected end of file".to_string(),
-                "could not compile due to above errors".to_string()
+                "error (line 1:1): unexpected token.".to_string(),
+                "error (line 1:2): unexpected end of file.".to_string(),
+                "could not compile due to above errors.".to_string()
             ]
         )
     }
@@ -196,8 +195,8 @@ mod tests
             "()",
             Vec::new(),
             vec![
-                "error (line 1:2): expected expression within parentheses".to_string(),
-                "could not compile due to above errors".to_string()
+                "error (line 1:2): expected expression within parentheses.".to_string(),
+                "could not compile due to above errors.".to_string()
             ]
         )
     }
@@ -272,7 +271,7 @@ mod tests
                 "div_by_zero",
                 format!("{a}/0").as_str(), 
                 Vec::new(),
-                vec![format!("error (line 1:{}): division by 0", format!("{a}").chars().count() + 1)]
+                vec![format!("error (line 1:{}): division by 0.", format!("{a}").chars().count() + 1)]
             );
         }
 
@@ -301,7 +300,7 @@ mod tests
                 "mod_by_zero",
                 format!("{a}%0").as_str(), 
                 Vec::new(),
-                vec![format!("error (line 1:{}): division by 0", format!("{a}").chars().count() + 1)]
+                vec![format!("error (line 1:{}): division by 0.", format!("{a}").chars().count() + 1)]
             );
         }
 
@@ -379,8 +378,8 @@ mod tests
                 format!("{a}++{b}").as_str(), 
                 Vec::new(),
                 vec![
-                    format!("error (line 1:{}): unexpected token", format!("{a}").chars().count() + 2),
-                    "could not compile due to above errors".to_string()
+                    format!("error (line 1:{}): unexpected token.", format!("{a}").chars().count() + 2),
+                    "could not compile due to above errors.".to_string()
                 ]
             );
         }
