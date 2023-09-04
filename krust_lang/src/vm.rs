@@ -1,24 +1,24 @@
 //! The module for the virtual machine used by the language.
 
-use crate::compiler;
-use crate::math;
-use compiler::OpCode;
+use crate::{log, math, compiler};
+use log::{Log, LogType, ErrorType, is_error};
 use math::shift_int;
+use compiler::OpCode;
 
 use num_traits::FromPrimitive;
 
 /// Runs the bytecode.
-pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Option<String>)
+pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>)
 {
     let mut output: Vec<String> = Vec::new();
-    let mut err: Option<String> =None;
+    let mut logs: Vec<Log> = Vec::new();
 
-    let possible_error = handle_errors(bytecode, &mut output, &mut err);
+    let possible_error = handle_errors(bytecode, &mut output, &mut logs);
     let ptr_size: Option<usize> = possible_error.1;
-    let possible_error: Option<(&Vec<String>, &Option<String>)> = possible_error.0;
+    let possible_error: Option<(&Vec<String>, &Vec<Log>)> = possible_error.0;
     if possible_error.is_some()
     {
-        let error: (&Vec<String>, &Option<String>) = possible_error.expect("if statement");
+        let error: (&Vec<String>, &Vec<Log>) = possible_error.expect("if statement");
         return (error.0.clone(), error.1.clone());
     }
     let ptr_size: usize = ptr_size.expect("no error yet");
@@ -34,36 +34,35 @@ pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Option<String>)
         {
             Some(op) => 
             {
-                if match_op(op, bytecode, &mut stack, &mut index, &mut output, &mut err, ptr_size)
+                if match_op(op, bytecode, &mut stack, &mut index, &mut output, &mut logs, ptr_size)
                 {
-                    return (output, err);
+                    return (output, logs);
                 }
             }
             None => 
             { 
-                err = Some("fatal error; program terminated".to_string());
-                return (output, err);
+                logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
+                return (output, logs);
             }
         }
     }
-    (output, err)
+    (output, logs)
 }
 
 // Handle any errors immediatly present in the bytecode.
-fn handle_errors<'o, 'e>(bytecode: &Vec<u8>, output: &'o mut Vec<String>, err: &'e mut Option<String>) 
-    -> (Option<(&'o Vec<String>, &'e Option<String>)>, Option<usize>)
+fn handle_errors<'o, 'e>(bytecode: &Vec<u8>, output: &'o mut Vec<String>, logs: &'e mut Vec<Log>) 
+    -> (Option<(&'o Vec<String>, &'e Vec<Log>)>, Option<usize>)
 {
     if bytecode.len() < 1
     {
-        *err = Some("fatal error; program terminated".to_string());
-        return (Some((output, err)), None);
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
+        return (Some((output, logs)), None);
     }
     let ptr_size: usize = bytecode[0] as usize;
     if ptr_size * 8 > usize::BITS.try_into().expect("max value of usize must be less than the number of bits")
     {
-        *err = Some(format!("error:  this program was compiled for a {}-bit machine, while this is only a {}-bit machine.", 
-            ptr_size * 8, usize::BITS));
-        return (Some((output, err)), Some(ptr_size));
+        logs.push(Log{log_type: LogType::Error(ErrorType::CompiledForDifferentTarget(ptr_size * 8)), line_and_col: None});
+        return (Some((output, logs)), Some(ptr_size));
     }
     (None, Some(ptr_size))
 }
@@ -75,36 +74,36 @@ fn match_op(
     stack: &mut Vec<u8>,
     index: &mut usize,
     output: &mut Vec<String>,
-    err: &mut Option<String>,
+    logs: &mut Vec<Log>,
     ptr_size: usize
 ) -> bool
 {
     match op
     {
-        OpCode::PushInt => push_int(bytecode, stack, index, err),
-        OpCode::PopInt => pop_int(stack, output, err),
-        OpCode::MinusInt => minus_int(stack, err),
-        OpCode::AddInt => add_int(stack, err),
-        OpCode::SubtractInt => subtract_int(stack, err),
-        OpCode::MultiplyInt => multiply_int(stack, err),
-        OpCode::DivideInt => divide_int(bytecode, stack, index, err, ptr_size),
-        OpCode::ModuloInt => modulo_int(bytecode, stack, index, err, ptr_size),
-        OpCode::ComplementInt => complement_int(stack, err),
-        OpCode::LeftShiftInt => left_shift_int(stack, err),
-        OpCode::RightShiftInt => right_shift_int(stack, err),
-        OpCode::AndInt => and_int(stack, err),
-        OpCode::XorInt => xor_int(stack, err),
-        OpCode::OrInt => or_int(stack, err),
+        OpCode::PushInt => push_int(bytecode, stack, index, logs),
+        OpCode::PopInt => pop_int(stack, output, logs),
+        OpCode::MinusInt => minus_int(stack, logs),
+        OpCode::AddInt => add_int(stack, logs),
+        OpCode::SubtractInt => subtract_int(stack, logs),
+        OpCode::MultiplyInt => multiply_int(stack, logs),
+        OpCode::DivideInt => divide_int(bytecode, stack, index, logs, ptr_size),
+        OpCode::ModuloInt => modulo_int(bytecode, stack, index, logs, ptr_size),
+        OpCode::ComplementInt => complement_int(stack, logs),
+        OpCode::LeftShiftInt => left_shift_int(stack, logs),
+        OpCode::RightShiftInt => right_shift_int(stack, logs),
+        OpCode::AndInt => and_int(stack, logs),
+        OpCode::XorInt => xor_int(stack, logs),
+        OpCode::OrInt => or_int(stack, logs),
     };
-    err.is_some()
+    is_error(logs)
 }
 
 // Pushes an int from the bytecode to the stack.
-fn push_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, err: &mut Option<String>)
+fn push_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>)
 {
     if *index + 4 > bytecode.len()
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
     for _i in 0..4
     {
@@ -114,7 +113,7 @@ fn push_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, err: &mu
 }
 
 // Pops an int from the stack and adds it to the output.
-fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, err: &mut Option<String>,)
+fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>,)
 {
     let value: Option<i32> = pop_int_from_stack(stack);
     if let Some(value) = value
@@ -123,12 +122,12 @@ fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, err: &mut Option<Strin
     }
     else
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 
 // Gets the negative of an int.
-fn minus_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+fn minus_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     let value: Option<i32> = pop_int_from_stack(stack);
     if let Some(value) = value
@@ -138,12 +137,12 @@ fn minus_int(stack: &mut Vec<u8>, err: &mut Option<String>)
     }
     else 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 
 // Adds two ints.
-fn add_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+fn add_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     let b: Option<i32> = pop_int_from_stack(stack);
     let a: Option<i32> = pop_int_from_stack(stack);
@@ -159,12 +158,12 @@ fn add_int(stack: &mut Vec<u8>, err: &mut Option<String>)
     }
     if fail 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 
 // Subtracts two ints.
-fn subtract_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+fn subtract_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     let b: Option<i32> = pop_int_from_stack(stack);
     let a: Option<i32> = pop_int_from_stack(stack);
@@ -180,12 +179,12 @@ fn subtract_int(stack: &mut Vec<u8>, err: &mut Option<String>)
     }
     if fail 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 
 // Multiplies two ints.
-fn multiply_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+fn multiply_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     let b: Option<i32> = pop_int_from_stack(stack);
     let a: Option<i32> = pop_int_from_stack(stack);
@@ -201,16 +200,16 @@ fn multiply_int(stack: &mut Vec<u8>, err: &mut Option<String>)
     }
     if fail 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 
 // Divides two ints. Reports an error if the second int is zero.
-fn divide_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: &mut Option<String>, ptr_size: usize)
+fn divide_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>, ptr_size: usize)
 {
     if *index + 2 * ptr_size > bytecode.len()
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
     
     let b: Option<i32> = pop_int_from_stack(stack);
@@ -237,7 +236,7 @@ fn divide_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: 
                     *index += 1;
                 }
                 let col: usize = usize::from_le_bytes(bytes);
-                *err =  Some(format!("error (line {line}:{col}): division by 0"));
+                logs.push(Log{log_type: LogType::Error(ErrorType::DivideByZero), line_and_col: Some((line, col))});
                 return;
             }
             let c: i32 = i32::wrapping_div(a, b);
@@ -246,17 +245,17 @@ fn divide_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: 
     }
     if fail 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
     *index += 2 * ptr_size as usize;
 }
 
 // Gets the modulo of two ints. Reports an error if the second int is zero.
-fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: &mut Option<String>, ptr_size: usize)
+fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>, ptr_size: usize)
 {
     if *index + 2 * ptr_size > bytecode.len()
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
     
     let b: Option<i32> = pop_int_from_stack(stack);
@@ -283,7 +282,7 @@ fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: 
                     *index += 1;
                 }
                 let col: usize = usize::from_le_bytes(bytes);
-                *err =  Some(format!("error (line {line}:{col}): division by 0"));
+                logs.push(Log{log_type: LogType::Error(ErrorType::DivideByZero), line_and_col: Some((line, col))});
                 return;
             }
             let c: i32 = i32::wrapping_rem_euclid(a, b);
@@ -292,13 +291,13 @@ fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, err: 
     }
     if fail 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
     *index += 2 * ptr_size as usize;
 }
 
 // Finds the complement of an int.
-fn complement_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+fn complement_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     let value: Option<i32> = pop_int_from_stack(stack);
     if let Some(value) = value
@@ -308,13 +307,13 @@ fn complement_int(stack: &mut Vec<u8>, err: &mut Option<String>)
     }
     else 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 
 
 // Left shifts an int by an int
-fn left_shift_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+fn left_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     let b: Option<i32> = pop_int_from_stack(stack);
     let a: Option<i32> = pop_int_from_stack(stack);
@@ -330,12 +329,12 @@ fn left_shift_int(stack: &mut Vec<u8>, err: &mut Option<String>)
     }
     if fail 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 
 // Left shifts an int by an int
-fn right_shift_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+fn right_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     let b: Option<i32> = pop_int_from_stack(stack);
     let a: Option<i32> = pop_int_from_stack(stack);
@@ -351,12 +350,12 @@ fn right_shift_int(stack: &mut Vec<u8>, err: &mut Option<String>)
     }
     if fail 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 
 // Bitwise ands two ints.
-fn and_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+fn and_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     let b: Option<i32> = pop_int_from_stack(stack);
     let a: Option<i32> = pop_int_from_stack(stack);
@@ -372,12 +371,12 @@ fn and_int(stack: &mut Vec<u8>, err: &mut Option<String>)
     }
     if fail 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 
 // Bitwise xors two ints.
-fn xor_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+fn xor_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     let b: Option<i32> = pop_int_from_stack(stack);
     let a: Option<i32> = pop_int_from_stack(stack);
@@ -393,12 +392,12 @@ fn xor_int(stack: &mut Vec<u8>, err: &mut Option<String>)
     }
     if fail 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 
 // Bitwise ors two ints.
-fn or_int(stack: &mut Vec<u8>, err: &mut Option<String>)
+fn or_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     let b: Option<i32> = pop_int_from_stack(stack);
     let a: Option<i32> = pop_int_from_stack(stack);
@@ -414,7 +413,7 @@ fn or_int(stack: &mut Vec<u8>, err: &mut Option<String>)
     }
     if fail 
     {
-        *err = Some("fatal error; program terminated".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
     }
 }
 

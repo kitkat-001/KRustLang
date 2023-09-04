@@ -23,7 +23,7 @@ fn main() {
     if cli_output.0.is_some()
     {
         let cli_output: CLIInfo = cli_output.0.expect("checked by if statement");
-        let output: (Vec<String>, Vec<String>) = run(
+        let output: (Vec<String>, Vec<Log>) = run(
             cli_output.file_path,
             cli_output.cli_args);
         for string in output.0
@@ -39,33 +39,33 @@ fn main() {
 
 // Runs the code in the file.
 // TODO: Don't save all the printing till the end, instead print when printing should happen.
-fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<String>)
+fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<Log>)
 {
     let lex_output: LexerOutput = lex(&file_path);
     let parse_output: ParserOutput = parse(lex_output);
     let compiler_output: CompilerOutput = compile(parse_output, cli_args);
     let mut output: Vec<String> = Vec::new();
-    let mut err: Vec<String> = Vec::new();
+    let mut logs: Vec<Log> = Vec::new();
 
     for log in compiler_output.logs
     {
-        err.push(format!("{log}"));
+        logs.push(log);
     }
     if let Some(bytecode) = compiler_output.bytecode
     {
-        let out_err: (Vec<String>, Option<String>) = vm::run(&bytecode);
-        output.append(&mut out_err.0.clone());
-        if let Some(err_value) = out_err.1
+        let out_log: (Vec<String>, Vec<Log>) = vm::run(&bytecode);
+        output.append(&mut out_log.0.clone());
+        for log in out_log.1
         {
-            err.push(err_value);
+            logs.push(log);
         }
     }
     else 
     {
-        err.push("could not compile due to above errors.".to_string());
+        //log.push("could not compile due to above errors.".to_string());
     }
 
-    (output, err)
+    (output, logs)
 }
 
 /// The module for running tests.
@@ -73,9 +73,11 @@ fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<String>)
 mod tests
 {
     use crate::math;
+    use crate::log;
     use super::run;
 
     use std::fs;
+    use log::all_to_string;
 
     use proptest;
     use proptest::prelude::*;
@@ -89,7 +91,7 @@ mod tests
             file_path,
             [(usize::BITS / 8).try_into().expect("length of usize shouldn't be over 1024 bits")]);
         assert_eq!(out_err.0, out);
-        assert_eq!(out_err.1, err);
+        assert_eq!(all_to_string(&out_err.1), err);
     }
 
     #[test]

@@ -3,14 +3,14 @@
 use std::fmt::{Display, Formatter, Result};
 
 /// An enum representing anything that can be logged.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum LogType
 {
     Warning(WarningType),
     Error(ErrorType)
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum WarningType
 {
     CLIArgRoundedDownU16(String, u16),
@@ -18,7 +18,7 @@ pub enum WarningType
 }
 
 /// An enum representing any possible error.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum ErrorType
 {
     FatalError,
@@ -47,11 +47,12 @@ pub enum ErrorType
 
     ExcessiveBytecode,
 
+    CompiledForDifferentTarget(usize),
     DivideByZero,
 }
 
 /// Represents all possible errors as well as helpful debug information when relevant.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Log
 {
     pub log_type: LogType,
@@ -105,7 +106,7 @@ impl Display for Log
                     => format!("could not open file \"{path}\"."),
                 ErrorType::CLINoFile => "no source file entered.".to_string(),
                 ErrorType::CLIFileToBig(ptr_size) 
-                    => format!("error: the file is too big to compile for a {ptr_size}-bit machine."),
+                    => format!("the file is too big to compile for a {ptr_size}-bit machine."),
 
                 ErrorType::UnrecognizedToken(token) 
                     => format!("unrecognized token \"{token}\"."),
@@ -122,6 +123,9 @@ impl Display for Log
 
                 ErrorType::ExcessiveBytecode => "could not compile as bytecode was too large.".to_string(),
             
+                
+                ErrorType::CompiledForDifferentTarget(ptr_size) 
+                    => format!("this program was compiled for a {ptr_size}-bit machine, while this is only a {}-bit machine.", usize::BITS),
                 ErrorType::DivideByZero => "division by zero.".to_string(),
             }},
         }};
@@ -149,4 +153,15 @@ pub fn is_error(logs: &Vec<Log>) -> bool
         }
     }
     false
+}
+
+/// Converts all logs into strings.
+pub fn all_to_string(logs: &Vec<Log>) -> Vec<String>
+{
+    let mut strings: Vec<String> = Vec::new();
+    for log in logs
+    {
+        strings.push(format!("{log}"));
+    }
+    return strings;
 }
