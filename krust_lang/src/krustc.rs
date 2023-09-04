@@ -9,7 +9,7 @@ use std::fs::{File, rename};
 use std::io::{prelude::*, Error};
 use std::path::PathBuf;
 use std::process::Command;
-use log::Log;
+use log::{Log, LogType, InfoType, ErrorType};
 use cli_reader::{CLIInfo, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
@@ -28,10 +28,7 @@ fn main() {
         let compiler_output: CompilerOutput = generate_bytecode(
             &cli_output.file_path,
             cli_output.cli_args);
-        for log in compiler_output.logs
-        {
-            eprintln!("{log}");
-        }
+        let mut logs: Vec<Log> = compiler_output.logs.clone();
         if let Some(bytecode) = compiler_output.bytecode
         {
             let file_path: String = cli_output.file_path.clone().strip_suffix("txt")
@@ -40,8 +37,16 @@ fn main() {
             let result: Result<(), Error> = create_compiled_exe(&bytecode, &file_path);
             if let Err(_) = result
             {
-                eprintln!("fatal error; could not compile");
+                logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None})
             }
+        }
+        else
+        {
+            logs.push(Log{log_type: LogType::Info(InfoType::CantCompile), line_and_col: None});
+        }
+        for log in logs
+        {
+            eprintln!("{log}");
         }
     }
 }

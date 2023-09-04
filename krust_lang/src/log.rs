@@ -1,15 +1,25 @@
 //! The module for debug messages.
 
 use std::fmt::{Display, Formatter, Result};
+use colored::{ColoredString, Colorize, control::{set_override, unset_override}};
 
 /// An enum representing anything that can be logged.
 #[derive(Clone, PartialEq, Eq)]
 pub enum LogType
 {
+    Info(InfoType),
     Warning(WarningType),
     Error(ErrorType)
 }
 
+/// An enum representing any possible 
+#[derive(Clone, PartialEq, Eq)]
+pub enum InfoType
+{
+    CantCompile
+}
+
+/// An enum representing any possible warning.
 #[derive(Clone, PartialEq, Eq)]
 pub enum WarningType
 {
@@ -71,12 +81,17 @@ impl Display for Log
             }
         }
 
-        let log_type: String = match self.log_type.clone() {
-            LogType::Warning(_) => "warning".to_string(),
-            LogType::Error(_) => "error".to_string(),
+        let log_type: ColoredString = match self.log_type.clone() {
+            LogType::Info(_) => "info".to_string().white(),
+            LogType::Warning(_) => "warning".to_string().yellow(),
+            LogType::Error(_) => "error".to_string().red(),
         };
 
         let message: String = { match self.log_type.clone() {
+            LogType::Info(info_type) => {match info_type
+            {
+                InfoType::CantCompile => "could not compile due to errors.".to_string()
+            }}
             LogType::Warning(warning_type) => {match warning_type
             {
                 WarningType::CLIArgRoundedDownU16(arg, value)
@@ -131,13 +146,15 @@ impl Display for Log
         }};
         if let None = self.line_and_col
         {
-            write!(f, "{log_type}: {message}")
+            let output: ColoredString = format!("{log_type}: {message}").bold();
+            write!(f, "{output}")
         }
         else 
         {
-            write!(f, "{log_type} (line {}:{}): {message}", 
+            let output: ColoredString = format!("{log_type} (line {}:{}): {message}", 
                 self.line_and_col.expect("checked by if statement").0, 
-                self.line_and_col.expect("checked by if statement").1)    
+                self.line_and_col.expect("checked by if statement").1).bold();    
+            write!(f, "{output}")
         }
     }
 }

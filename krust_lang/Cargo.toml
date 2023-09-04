@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+colored = "2.0.4"
 num-derive = "0.4.0"
 num-traits = "0.2.15"
 proptest = "1.2.0"

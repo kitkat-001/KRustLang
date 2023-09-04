@@ -5,3 +5,8 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc b8f55a7f8cf0e95e66445455e80110b25941a3bf6bd61d339c509a4e967ef3ae # shrinks to a = 0, b = -1
+cc 4c1f6a8ffbe623fdbf57b07e4d5d9fa8e758eca70459b27abf9c3a2b75394efc # shrinks to a = 849114059, b = 167707957
+cc ac78afc1aa1e9a56d9ff4b0c1957813753e53eb07d1aeaae902c4b83dc568d02 # shrinks to a = -1433231473
+cc ed852c817e9decc18570ab468a01e32ce4299b391575ea7807e8e745c43ac75a # shrinks to a = 782404677
+cc 09983cc64a24f1f4e6b1adf58287245aebc3da6ab2286c7bbb917b19d3504809 # shrinks to a = 1934012656, b = -900873731
+cc f40536ad2416b47a8c9be63630ff0055ee2c266d03dd1803671266359e5a3a72 # shrinks to a = 1549984011
