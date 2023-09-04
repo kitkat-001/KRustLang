@@ -5,25 +5,24 @@ mod compiler;
 mod vm;
 
 mod math;
-mod error;
+mod log;
 
+use log::Log;
 use cli_reader::{CLIInfo, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
 use compiler::{CompilerOutput, compile};
 
 fn main() {
-    let cli_output: Result<CLIInfo, Vec<String>>  = read_command_line();
-    if cli_output.is_err()
+    let cli_output: (Option<CLIInfo>, Vec<Log>)  = read_command_line();
+    for log in cli_output.1
     {
-        for error in cli_output.err().expect("checked by if statement")
-        {
-            eprintln!("{}", error);
-        }
+        eprintln!("{}", log);
     }
-    else
+
+    if cli_output.0.is_some()
     {
-        let cli_output: CLIInfo = cli_output.ok().expect("checked by if statement");
+        let cli_output: CLIInfo = cli_output.0.expect("checked by if statement");
         let output: (Vec<String>, Vec<String>) = run(
             cli_output.file_path,
             cli_output.cli_args);
@@ -44,15 +43,15 @@ fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<String>)
 {
     let lex_output: LexerOutput = lex(&file_path);
     let parse_output: ParserOutput = parse(lex_output);
-    let compile_output: CompilerOutput = compile(parse_output, cli_args);
+    let compiler_output: CompilerOutput = compile(parse_output, cli_args);
     let mut output: Vec<String> = Vec::new();
     let mut err: Vec<String> = Vec::new();
 
-    for error in compile_output.errors
+    for log in compiler_output.logs
     {
-        err.push(error);
+        err.push(format!("{log}"));
     }
-    if let Some(bytecode) = compile_output.bytecode
+    if let Some(bytecode) = compiler_output.bytecode
     {
         let out_err: (Vec<String>, Option<String>) = vm::run(&bytecode);
         output.append(&mut out_err.0.clone());

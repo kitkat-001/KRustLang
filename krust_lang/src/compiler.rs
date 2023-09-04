@@ -1,6 +1,7 @@
 //! The module for compiling source code into byte code.
 
-use crate::{lexer, parser};
+use crate::{log, lexer, parser};
+use log::{Log, LogType, ErrorType, is_error};
 use lexer::{TokenType, Token};
 use parser::{Expression, ParserOutput};
 
@@ -36,23 +37,23 @@ pub struct CompilerOutput
 {
     pub file_text: String,
     pub bytecode: Option<Vec<u8>>,
-    pub errors: Vec<String>,
+    pub logs: Vec<Log>,
 }
 
 /// Compiles to bytecode.
 pub fn compile(parser_output: ParserOutput, cli_args: [u8; 1]) -> CompilerOutput
 {
     let mut bytecode: Option<Vec<u8>> = None;
-    let mut errors: Vec<String> = parser_output.errors.clone();
+    let mut logs: Vec<Log> = parser_output.logs.clone();
 
-    if parser_output.can_compile
+    if !is_error(&logs)
     {
         let mut byte_list: Vec<u8> = cli_args.to_vec();
         byte_list.append(&mut generate_bytecode(parser_output.expr, cli_args[0]));
         byte_list.push(OpCode::PopInt as u8);
         if u32::from(cli_args[0]) * 8 < usize::BITS && byte_list.len() >= 1 << (cli_args[0] * 8)
         {
-            errors.push("error: could not compile as bytecode was too large.".to_string());
+            logs.push(Log{log_type: LogType::Error(ErrorType::ExcessiveBytecode), line_and_col: None});
         }
         else
         {
@@ -60,7 +61,7 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 1]) -> CompilerOutput
         }
     }
 
-    CompilerOutput { file_text: parser_output.file_text, bytecode, errors }
+    CompilerOutput { file_text: parser_output.file_text, bytecode, logs }
 }
 
 fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>

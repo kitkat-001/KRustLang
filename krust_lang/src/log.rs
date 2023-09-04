@@ -1,4 +1,4 @@
-//! The module for error handling.
+//! The module for debug messages.
 
 use std::fmt::{Display, Formatter, Result};
 
@@ -14,7 +14,7 @@ pub enum LogType
 pub enum WarningType
 {
     CLIArgRoundedDownU16(String, u16),
-    CLITargetLargerThanMachine(u16),
+    CLITargetLargerThanMachine(usize),
 }
 
 /// An enum representing any possible error.
@@ -49,7 +49,9 @@ pub enum ErrorType
 
     DivideByZero,
 }
+
 /// Represents all possible errors as well as helpful debug information when relevant.
+#[derive(Clone)]
 pub struct Log
 {
     pub log_type: LogType,
@@ -87,7 +89,7 @@ impl Display for Log
                 ErrorType::FatalError => String::new(), // dealt with above
 
                 ErrorType::CLIMultipleFiles => "command line contains multiple files.".to_string(),
-                ErrorType::CLICantReadArgs => "could not read command line arguments".to_string(),
+                ErrorType::CLICantReadArgs => "could not read command line arguments.".to_string(),
                 ErrorType::CLINoArgs => "no command line arguments.".to_string(),
                 ErrorType::CLIRequiresArg(arg) 
                     => format!("compiler flag \"{arg}\" requires an argument."),
@@ -101,9 +103,9 @@ impl Display for Log
                     => format!("unrecognized argument \"{arg}\"."),
                 ErrorType::CLICantOpenFile(path)
                     => format!("could not open file \"{path}\"."),
-                ErrorType::CLINoFile => "no source file entered".to_string(),
+                ErrorType::CLINoFile => "no source file entered.".to_string(),
                 ErrorType::CLIFileToBig(ptr_size) 
-                    => format!("error: the file is too big to compile for a {ptr_size}-bit machine"),
+                    => format!("error: the file is too big to compile for a {ptr_size}-bit machine."),
 
                 ErrorType::UnrecognizedToken(token) 
                     => format!("unrecognized token \"{token}\"."),
@@ -134,4 +136,17 @@ impl Display for Log
                 self.line_and_col.expect("checked by if statement").1)    
         }
     }
+}
+
+/// Returns whether or not a list of logs contains an error.
+pub fn is_error(logs: &Vec<Log>) -> bool
+{
+    for log in logs
+    {
+        if let LogType::Error(_) = log.log_type
+        {
+            return true;
+        }
+    }
+    false
 }

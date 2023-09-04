@@ -2,35 +2,35 @@ mod cli_reader;
 mod lexer;
 mod parser;
 mod compiler;
+mod log;
 
 use std::env::{current_dir, set_current_dir};
 use std::fs::{File, rename};
 use std::io::{prelude::*, Error};
 use std::path::PathBuf;
 use std::process::Command;
+use log::Log;
 use cli_reader::{CLIInfo, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
 use compiler::{CompilerOutput, compile};
 
 fn main() {
-    let cli_output: Result<CLIInfo, Vec<String>>  = read_command_line();
-    if cli_output.is_err()
+    let cli_output: (Option<CLIInfo>, Vec<Log>)  = read_command_line();
+    for log in cli_output.1
     {
-        for error in cli_output.err().expect("checked by if statement")
-        {
-            eprintln!("{}", error);
-        }
+        eprintln!("{}", log);
     }
-    else
+    
+    if cli_output.0.is_some()
     {
-        let cli_output: CLIInfo = cli_output.ok().expect("checked by if statement");
+        let cli_output: CLIInfo = cli_output.0.expect("checked by if statement");
         let compiler_output: CompilerOutput = generate_bytecode(
             &cli_output.file_path,
             cli_output.cli_args);
-        for err in compiler_output.errors
+        for log in compiler_output.logs
         {
-            eprintln!("{err}");
+            eprintln!("{log}");
         }
         if let Some(bytecode) = compiler_output.bytecode
         {
@@ -40,7 +40,7 @@ fn main() {
             let result: Result<(), Error> = create_compiled_exe(&bytecode, &file_path);
             if let Err(_) = result
             {
-                eprintln!("!fatal error; could not compile");
+                eprintln!("fatal error; could not compile");
             }
         }
     }

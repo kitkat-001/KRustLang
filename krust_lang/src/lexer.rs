@@ -1,9 +1,11 @@
 //! The module for lexing the source file, i.e. splitting it up into tokens.
 
+use crate::log;
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::io::Error;
 use std::num::ParseIntError;
+use log::{Log, LogType, ErrorType};
 
 /// A token representing an indivisible piece of the source code.
 #[derive(Clone, Copy)]
@@ -41,16 +43,16 @@ pub enum TokenType
 
 impl Token
 {
-    /// Converts the token to a string slice given the text it came from.
-    pub fn to_string<'a>(&'a self, source: &'a str) -> &str
+    /// Converts the token to a string given the text it came from.
+    pub fn to_string<'a>(&'a self, source: &'a str) -> String
     {
         if self.token_type == TokenType::EOF
         {
-            "EOF"
+            "EOF".to_string()
         }
         else
         {
-            &source[self.start..(self.start+self.length)]
+            source[self.start..(self.start+self.length)].to_string()
         }
     }
 }
@@ -60,8 +62,7 @@ pub struct LexerOutput
 {
     pub file_text: String,
     pub tokens: Vec<Token>,
-    pub errors: Vec<String>,
-    pub can_compile: bool,
+    pub logs: Vec<Log>,
 }
 
 /// Lexes the file given in the command line.
@@ -71,8 +72,7 @@ pub fn lex(file_path: &str) -> LexerOutput
     let file_text: Result<String, Error> = read_to_string(file_path);
     let file_text: String = file_text.ok().expect("should be valid as error handled in command line reader");
     let mut tokens: Vec<Token> = Vec::new();
-    let mut errors: Vec<String> = Vec::new();
-    let mut can_compile: bool = true;
+    let mut logs: Vec<Log> = Vec::new();
 
     // Values for the tokens.
     let mut index: usize = 0;
@@ -85,8 +85,7 @@ pub fn lex(file_path: &str) -> LexerOutput
         let output: Option<LexerOutput> = get_token(
             &file_text,
             &mut tokens,
-            &mut errors,
-            &mut can_compile,
+            &mut logs,
             &mut index,
             &mut line,
             &mut col
@@ -99,8 +98,7 @@ pub fn lex(file_path: &str) -> LexerOutput
 fn get_token(
     file_text: &String, 
     tokens: &mut Vec<Token>, 
-    errors: &mut Vec<String>,
-    can_compile: &mut bool,
+    logs: &mut Vec<Log>,
     index: &mut usize,
     line: &mut usize,
     col: &mut usize
@@ -130,8 +128,7 @@ fn get_token(
         return Some(LexerOutput{
             file_text: file_text.to_string(), 
             tokens: tokens.clone(), 
-            errors: errors.clone(), 
-            can_compile: *can_compile});
+            logs: logs.clone()});
     }
     let c: char = c.expect("should be valid as error handled earlier");
     // Single character tokens.
@@ -148,11 +145,11 @@ fn get_token(
     else if handle_shift(file_text, tokens, line, col, index) {}
     else if c >= '0' && c <= '9'
     {
-        handle_number(file_text, tokens, errors, can_compile, line, col, index);
+        handle_number(file_text, tokens, logs, line, col, index);
     }
     else
     {
-        handle_error(file_text, tokens, errors, can_compile, line, col, index)
+        handle_error(file_text, tokens, logs, line, col, index)
     }
 
     None
@@ -229,8 +226,7 @@ fn handle_shift(
 fn handle_number(
     file_text: &String, 
     tokens: &mut Vec<Token>,
-    errors: &mut Vec<String>,
-    can_compile: &mut bool,  
+    logs: &mut Vec<Log>,
     line: &mut usize,
     col: &mut usize, 
     index: &mut usize,  
@@ -246,9 +242,8 @@ fn handle_number(
     let token: Token = Token{token_type, line: *line, col: *col, start: *index, length};
     if let TokenType::Error = token.token_type
     {
-        *can_compile = false;
-        errors.push(format!("error (line {}:{}): int literal \"{}\" must be at most {}", 
-            *line, *col, token.to_string(&file_text), 0x8000_0000u32).to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::UnrepresentableIntegerLiteral(token.to_string(&file_text))), 
+            line_and_col: Some((*line, *col,))});
     }
     tokens.push(token);
     *index += length;
@@ -289,8 +284,7 @@ fn is_digit_option(c_option: &Option<char>) -> bool
 fn handle_error(
     file_text: &String, 
     tokens: &mut Vec<Token>,
-    errors: &mut Vec<String>,
-    can_compile: &mut bool,  
+    logs: &mut Vec<Log>,
     line: &mut usize,
     col: &mut usize, 
     index: &mut usize
@@ -302,10 +296,9 @@ fn handle_error(
         length += 1;
     }
     let token: Token = Token{token_type: TokenType::Error, line: *line, col: *col, start: *index, length};
-    errors.push(format!("error (line {}:{}): unrecognized token \"{}\"",
-        *line, *col, token.to_string(&file_text)).to_string());
+    logs.push(Log{log_type: LogType::Error(ErrorType::UnrecognizedToken(token.to_string(&file_text))), 
+        line_and_col: Some((*line, *col,))});
     tokens.push(token);
-    *can_compile = false;
     *index += length;
     *col += length;
 }

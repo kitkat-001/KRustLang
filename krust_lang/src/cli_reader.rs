@@ -1,5 +1,6 @@
 //! The module for reading from the command line.
 
+use crate::log;
 use std::cmp::min;
 use std::env::args;
 use std::fs::read_to_string;
@@ -7,6 +8,7 @@ use std::io;
 use std::num::ParseIntError;
 use std::panic::catch_unwind;
 use std::thread;
+use log::{Log, LogType, ErrorType, WarningType};
 
 /// The result from reading the command line without errors.
 pub struct CLIInfo
@@ -18,12 +20,14 @@ pub struct CLIInfo
 const COMPILER_FLAGS: [&str; 1] = ["-pointer_size"];
 
 /// Get file name and compiler flags from the command line.
-pub fn read_command_line() -> Result<CLIInfo, Vec<String>>
+pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>)
 {
-    let input: Vec<String> = get_args()?;
+    let input: Result<Vec<String>, Vec<Log>>  = get_args();
+    if input.is_err() {return (None, input.err().expect("checked by if statement"))};
+    let input: Vec<String> = input.ok().expect("checked by if statement");
     let mut file_path: Option<String> = None;
     let mut ptr_size: u16 = min(usize::BITS, 2047).try_into().expect("should be valid as max value is less than u16::MAX");
-    let mut errors: Vec<String> = Vec::new();
+    let mut logs: Vec<Log> = Vec::new();
     let mut multiple_file_error: bool = false;
     for arg in input
     {
@@ -35,55 +39,55 @@ pub fn read_command_line() -> Result<CLIInfo, Vec<String>>
             }
             else
             {
-                errors.push("error: command line contains multiple files.".to_string());
+                logs.push(Log{log_type: LogType::Error(ErrorType::CLIMultipleFiles), line_and_col: None});
                 file_path = None;
                 multiple_file_error = true;
             }
         }
         else if arg.starts_with(COMPILER_FLAGS[0])
         {
-            ptr_size = handle_ptr_size(&arg, &mut errors, ptr_size);
+            ptr_size = handle_ptr_size(&arg, &mut logs, ptr_size);
         }
         else
         {
-            handle_unrecognized_flag(&arg, &mut errors);
+            handle_unrecognized_flag(&arg, &mut logs);
         }
     }
     
-    get_result(file_path, &mut errors, ptr_size, multiple_file_error)
+    get_result(file_path, &mut logs, ptr_size, multiple_file_error)
 }
 
 // Get the arguments from the command line.
-fn get_args<'a>() -> Result<Vec<String>, Vec<String>>
+fn get_args<'a>() -> Result<Vec<String>, Vec<Log>>
 {
     let input: thread::Result<Vec<String>> = catch_unwind(||{args().collect()});
     if input.is_err()
     {
-        return Err(vec!(String::from("error: could not read command line arguments")));
+        return Err(vec!(Log{log_type: LogType::Error(ErrorType::CLICantReadArgs), line_and_col: None}));
     }
     let mut input: Vec<String> = input.ok().expect("should be valid as error handled earlier");
     if input.len() == 1
     {
-        return Err(vec!("error: no command line arguments".to_string()));
+        return Err(vec!(Log{log_type: LogType::Error(ErrorType::CLINoArgs), line_and_col: None}));
     }
     input.remove(0);
     Ok(input)
 }
 
 // Handle the pointer size compiler flag.
-fn handle_ptr_size (arg: &String, errors: &mut Vec<String>, mut ptr_size: u16) -> u16
+fn handle_ptr_size (arg: &String, logs: &mut Vec<Log>, mut ptr_size: u16) -> u16
 {
     let arg: &str = &arg[COMPILER_FLAGS[0].len()..];
     if !arg.starts_with("=")
     {
-        errors.push(format!("error: compiler flag \"{}\" requires an argument.", COMPILER_FLAGS[0]));
+        logs.push(Log{log_type: LogType::Error(ErrorType::CLIRequiresArg(COMPILER_FLAGS[0].to_string())), line_and_col: None});
     }
     else 
     {
         let parsed_arg: Result<u16, ParseIntError> = arg[1..].parse::<u16>();
         if let Err(ParseIntError{..}) = parsed_arg
         {
-            errors.push(format!("error: compiler flag \"{}\" requires a numerical argument.", COMPILER_FLAGS[0]));
+            logs.push(Log{log_type: LogType::Error(ErrorType::CLIRequiresNumArg(COMPILER_FLAGS[0].to_string())), line_and_col: None});
         }
         else 
         {
@@ -91,18 +95,18 @@ fn handle_ptr_size (arg: &String, errors: &mut Vec<String>, mut ptr_size: u16) -
         }
         if ptr_size >= 2048
         {
-            errors.push(format!("error: compiler flag \"{}\" requires an argument less than 2048.", COMPILER_FLAGS[0]));
+            logs.push(Log{log_type: LogType::Error(ErrorType::CLIRequiresNumArgLessThanU16(COMPILER_FLAGS[0].to_string(), 2048)), line_and_col: None});
         }
         if ptr_size < 8
         {
-            errors.push(format!("error: compiler flag \"{}\" requires an argument that's at least 8.", COMPILER_FLAGS[0]));
+            logs.push(Log{log_type: LogType::Error(ErrorType::CLIRequiresNumArgAtLeastU16(COMPILER_FLAGS[0].to_string(), 8)), line_and_col: None});
         }
     }
     ptr_size
 }
 
 // Handle unrecognized flags in the command line.
-fn handle_unrecognized_flag(arg: &String, errors: &mut Vec<String>)
+fn handle_unrecognized_flag(arg: &String, logs: &mut Vec<Log>)
 {
     let index: Option<usize> = arg.find('=');
     let mut arg_substr: &str = &arg[..];
@@ -110,31 +114,31 @@ fn handle_unrecognized_flag(arg: &String, errors: &mut Vec<String>)
     {
         arg_substr = &arg[..i]
     }
-    errors.push(format!("error: unrecognized argument \"{arg_substr}\""));
+    logs.push(Log{log_type: LogType::Error(ErrorType::CLIUnrecognizedArg(arg_substr.to_string())), line_and_col: None});
 }
 
 // Gets the CLI info.
 fn get_result(
     file_path: Option<String>, 
-    errors: &mut Vec<String>, 
+    logs: &mut Vec<Log>, 
     ptr_size: u16, 
     multiple_file_error: bool)
-    -> Result<CLIInfo, Vec<String>>
+    -> (Option<CLIInfo>, Vec<Log>)
 {
-    let file_size: usize = get_file_size(&file_path, errors, multiple_file_error);
+    let file_size: usize = get_file_size(&file_path, logs, multiple_file_error);
 
-    if errors.len() > 0
+    if logs.len() > 0
     {
-        Err(errors.clone())
+        (None, logs.clone())
     }
     else 
     {
-        handle_compiler_flag_issues(&file_path, errors, ptr_size, file_size)
+        handle_compiler_flag_issues(&file_path, logs, ptr_size, file_size)
     }
 }
 
 // Get the size of the file, if exactly one is given.
-fn get_file_size(file_path: &Option<String>, errors: &mut Vec<String>, multiple_file_error: bool) -> usize
+fn get_file_size(file_path: &Option<String>, logs: &mut Vec<Log>, multiple_file_error: bool) -> usize
 {
     let mut file_size: usize = 0;
     if let Some(ref path) = file_path
@@ -142,7 +146,7 @@ fn get_file_size(file_path: &Option<String>, errors: &mut Vec<String>, multiple_
         let result: io::Result<String> = read_to_string(path);
         if result.is_err()
         {
-            errors.push(format!("error: could not open file \"{path}\""));
+            logs.push(Log{log_type: LogType::Error(ErrorType::CLICantOpenFile(path.clone())), line_and_col: None});
         }
         else 
         {
@@ -151,7 +155,7 @@ fn get_file_size(file_path: &Option<String>, errors: &mut Vec<String>, multiple_
     }
     else if !multiple_file_error
     {
-        errors.push("error: no source file entered".to_string());
+        logs.push(Log{log_type: LogType::Error(ErrorType::CLINoFile), line_and_col: None});
     }
     file_size
 }
@@ -159,31 +163,33 @@ fn get_file_size(file_path: &Option<String>, errors: &mut Vec<String>, multiple_
 // Deal with issues relating to compiler flag values.
 fn handle_compiler_flag_issues(
     file_path: &Option<String>, 
-    errors: &mut Vec<String>, 
+    logs: &mut Vec<Log>, 
     ptr_size: u16, 
     file_size: usize) 
-    -> Result<CLIInfo, Vec<String>>
+    -> (Option<CLIInfo>, Vec<Log>)
 {
     if let Some(file_path) = file_path
     {
         let ptr_size_bytes: u8 = (ptr_size / 8).try_into().expect("ptr_size maximum is less than 2048");
         if ptr_size % 8 != 0
         {
-            println!("warning: argument of \"{}\" will be rounded down to the nearest multiple of 8", COMPILER_FLAGS[0]);
+            logs.push(Log{log_type: LogType::Warning(WarningType::CLIArgRoundedDownU16(COMPILER_FLAGS[0].to_string(), 8)), 
+                line_and_col: None});
         }
         let ptr_size: usize = <u8 as Into<usize>>::into(ptr_size_bytes) * 8;
         if ptr_size > usize::BITS.try_into().expect("max value of usize must be less than the number of bits")
         {
-            println!("warning: this program is being compiled for a {ptr_size}-bit machine, while this is only a {}-bit machine.", 
-                usize::BITS);
+            logs.push(Log{log_type: LogType::Warning(WarningType::CLITargetLargerThanMachine(ptr_size)), 
+                line_and_col: None});
         }
         else if ptr_size < usize::BITS.try_into().expect("max value of usize must be less than the number of bits")
             && file_size > 1 << ptr_size
         {
-            errors.push(format!("error: the file is too big to compile for a {ptr_size}-bit machine"));
-            return Err(errors.clone());
+            logs.push(Log{log_type: LogType::Error(ErrorType::CLIFileToBig(ptr_size)),
+                line_and_col: None});
+            return (Some(CLIInfo{ file_path: file_path.to_string(), cli_args: [ptr_size_bytes] }), logs.clone());
         }
-        Ok(CLIInfo{ file_path: file_path.to_string(), cli_args: [ptr_size_bytes] })
+        (Some(CLIInfo{ file_path: file_path.to_string(), cli_args: [ptr_size_bytes] }), logs.clone())
     }
     else 
     {

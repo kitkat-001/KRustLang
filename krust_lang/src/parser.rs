@@ -1,5 +1,6 @@
 //! The module for parsing the tokens and creating the AST.
-use crate::lexer;
+use crate::{log, lexer};
+use log::{Log, LogType, ErrorType};
 use lexer::{Token, LexerOutput, TokenType};
 
 /// An enum represetning the possible types of expressions.
@@ -20,8 +21,7 @@ pub struct ParserOutput
 {
     pub file_text: String,
     pub expr: Expression,
-    pub errors: Vec<String>,
-    pub can_compile: bool,
+    pub logs: Vec<Log>,
 }
 
 impl Expression
@@ -61,29 +61,28 @@ impl Expression
 /// Parse the output from the lexer.
 pub fn parse(lex_output: LexerOutput) -> ParserOutput
 {
-    let mut can_compile: bool = lex_output.can_compile;
-    let mut errors: Vec<String> = lex_output.errors.clone();
+    let mut logs: Vec<Log> = lex_output.logs.clone();
     let mut index: usize = 0;
     let tokens: Vec<Token> = lex_output.tokens;
-    let expr: Expression = get_expression(&tokens.clone(), &mut errors, &mut can_compile, &mut index);
+    let expr: Expression = get_expression(&tokens.clone(), &mut logs, &mut index);
     if index < tokens.len() && tokens[index].token_type != TokenType::EOF
     {
-        errors.push(format!("error (line {}:{}): expected end of file", tokens[index].line, tokens[index].col));
-        can_compile = false;
+        logs.push(Log{log_type: LogType::Error(ErrorType::ExpectedEOF), 
+            line_and_col: Some((tokens[index].line, tokens[index].col))});
     }
-    improve_ast(Box::new(expr.clone()), None, &mut errors, &mut can_compile);
-    ParserOutput{file_text: lex_output.file_text.clone(), expr, errors, can_compile}
+    improve_ast(Box::new(expr.clone()), None, &mut logs);
+    ParserOutput{file_text: lex_output.file_text.clone(), expr, logs}
 }
 
 
 // Get the expression from the token list.
-fn get_expression(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+fn get_expression(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
-    get_or(tokens, errors, can_compile, index)
+    get_or(tokens, logs, index)
 }
 
 // Get a primary expression (literals and grouping expressions).
-fn get_primary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+fn get_primary(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
     let token: Token = tokens[*index];
     *index += 1;
@@ -93,38 +92,38 @@ fn get_primary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut 
         TokenType::Error => Expression::Literal { token },
         TokenType::LeftParen => 
         {
-            handle_paren(tokens, errors, can_compile, index)
+            handle_paren(tokens, logs, index)
         },
         TokenType::EOF =>
         {
-            errors.push(format!("error (line {}:{}): unexpected end of file", token.line, token.col));
-            *can_compile = false;
+            logs.push(Log{log_type: LogType::Error(ErrorType::UnexpectedEOF), 
+                line_and_col: Some((token.line, token.col))});
             Expression::EOF
         },
         _ =>
         {
-            errors.push(format!("error (line {}:{}): unexpected token", token.line, token.col));
-            *can_compile = false;
-            get_expression(tokens, errors, can_compile, index)
+            logs.push(Log{log_type: LogType::Error(ErrorType::UnexpectedToken), 
+                line_and_col: Some((token.line, token.col))});
+            get_expression(tokens, logs, index)
         }
     }
 }
 
 // Handles primary expressions that use parentheses.
-fn handle_paren(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+fn handle_paren(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
     if tokens[*index].token_type == TokenType::RightParen
     {
-        errors.push(format!("error (line {}:{}): expected expression within parentheses", tokens[*index].line, tokens[*index].col));
-        *can_compile = false;
+        logs.push(Log{log_type: LogType::Error(ErrorType::ExpectedExpressionInParens), 
+            line_and_col: Some((tokens[*index].line, tokens[*index].col))});
         *index += 1;
         return Expression::Grouping { expr: Box::new(Expression::Null) };
     }
-    let expr: Expression = get_expression(tokens, errors, can_compile, index);
+    let expr: Expression = get_expression(tokens, logs, index);
     if let Expression::EOF = expr
     {
-        errors.push(format!("error (line {}:{}): expected \')\' following \'(\'", tokens[*index-1].line, tokens[*index-1].col));
-        *can_compile = false;
+        logs.push(Log{log_type: LogType::Error(ErrorType::ExpectedCloseParen), 
+            line_and_col: Some((tokens[*index-1].line, tokens[*index-1].col))});
         return expr;
     }
 
@@ -135,32 +134,32 @@ fn handle_paren(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut
     }
     else 
     {
-        errors.push(format!("error (line {}:{}): expected \')\' following \'(\'", tokens[*index].line, tokens[*index].col));
-        *can_compile = false;
+        logs.push(Log{log_type: LogType::Error(ErrorType::ExpectedCloseParen), 
+            line_and_col: Some((tokens[*index].line, tokens[*index].col))});
     }
     Expression::Grouping { expr }
 }
 
 // Get a unary expression.
-fn get_unary(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+fn get_unary(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
     if tokens[*index].token_type == TokenType::Minus || tokens[*index].token_type == TokenType::Tilde
     {
         let op: Token = tokens[*index];
         *index += 1;
-        let expr: Expression = get_unary(tokens, errors, can_compile, index);
+        let expr: Expression = get_unary(tokens, logs, index);
         Expression::Unary { op, expr: Box::new(expr) }
     }
     else 
     {
-        get_primary(tokens, errors, can_compile, index)
+        get_primary(tokens, logs, index)
     }
 }
 
 // Get a multiplicative expression (*, /).
-fn get_multiplicative(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+fn get_multiplicative(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
-    let mut expr: Expression = get_unary(tokens, errors, can_compile, index);
+    let mut expr: Expression = get_unary(tokens, logs, index);
     while !expr.is_eof() &&
         (tokens[*index].token_type == TokenType::Star 
             || tokens[*index].token_type == TokenType::Slash
@@ -168,7 +167,7 @@ fn get_multiplicative(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile
     {
         let op: Token = tokens[*index];
         *index += 1;
-        let right: Expression = get_unary(tokens, errors, can_compile, index);
+        let right: Expression = get_unary(tokens, logs, index);
         let is_eof: bool = right.is_eof();
         expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
         if is_eof
@@ -180,15 +179,15 @@ fn get_multiplicative(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile
 } 
 
 // Get a additive expression (+, -).
-fn get_additive(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+fn get_additive(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
-    let mut expr: Expression = get_multiplicative(tokens, errors, can_compile, index);
+    let mut expr: Expression = get_multiplicative(tokens, logs, index);
     while !expr.is_eof() &&
         (tokens[*index].token_type == TokenType::Plus || tokens[*index].token_type == TokenType::Minus)
     {
         let op: Token = tokens[*index];
         *index += 1;
-        let right: Expression = get_multiplicative(tokens, errors, can_compile, index);
+        let right: Expression = get_multiplicative(tokens, logs, index);
         let is_eof: bool = right.is_eof();
         expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
         if is_eof
@@ -200,16 +199,16 @@ fn get_additive(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut
 } 
 
 // Get a shift expression (<<, >>).
-fn get_shift(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+fn get_shift(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
-    let mut expr: Expression = get_additive(tokens, errors, can_compile, index);
+    let mut expr: Expression = get_additive(tokens, logs, index);
     while !expr.is_eof() &&
         (tokens[*index].token_type == TokenType::LeftShift 
             || tokens[*index].token_type == TokenType::RightShift)
     {
         let op: Token = tokens[*index];
         *index += 1;
-        let right: Expression = get_additive(tokens, errors, can_compile, index);
+        let right: Expression = get_additive(tokens, logs, index);
         let is_eof: bool = right.is_eof();
         expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
         if is_eof
@@ -221,15 +220,15 @@ fn get_shift(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bo
 } 
 
 // Gets a bitwise and expression.
-fn get_and(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+fn get_and(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
-    let mut expr: Expression = get_shift(tokens, errors, can_compile, index);
+    let mut expr: Expression = get_shift(tokens, logs, index);
     while !expr.is_eof() &&
         (tokens[*index].token_type == TokenType::Ampersand)
     {
         let op: Token = tokens[*index];
         *index += 1;
-        let right: Expression = get_shift(tokens, errors, can_compile, index);
+        let right: Expression = get_shift(tokens, logs, index);
         let is_eof: bool = right.is_eof();
         expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
         if is_eof
@@ -241,15 +240,15 @@ fn get_and(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool
 } 
 
 // Gets a bitwise xor expression.
-fn get_xor(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+fn get_xor(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
-    let mut expr: Expression = get_and(tokens, errors, can_compile, index);
+    let mut expr: Expression = get_and(tokens, logs, index);
     while !expr.is_eof() &&
         (tokens[*index].token_type == TokenType::Caret)
     {
         let op: Token = tokens[*index];
         *index += 1;
-        let right: Expression = get_and(tokens, errors, can_compile, index);
+        let right: Expression = get_and(tokens, logs, index);
         let is_eof: bool = right.is_eof();
         expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
         if is_eof
@@ -261,15 +260,15 @@ fn get_xor(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool
 } 
 
 // Gets a bitwise or expression.
-fn get_or(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool, index: &mut usize) -> Expression
+fn get_or(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
-    let mut expr: Expression = get_xor(tokens, errors, can_compile, index);
+    let mut expr: Expression = get_xor(tokens, logs, index);
     while !expr.is_eof() &&
         (tokens[*index].token_type == TokenType::Bar)
     {
         let op: Token = tokens[*index];
         *index += 1;
-        let right: Expression = get_xor(tokens, errors, can_compile, index);
+        let right: Expression = get_xor(tokens, logs, index);
         let is_eof: bool = right.is_eof();
         expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
         if is_eof
@@ -281,18 +280,18 @@ fn get_or(tokens: &Vec<Token>, errors: &mut Vec<String>, can_compile: &mut bool,
 } 
 
 // Simplify and correct the AST.
-fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, errors: &mut Vec<String>, can_compile: &mut bool)
+fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mut Vec<Log>)
 {
     match *expr
     {
         Expression::Binary { ref left, op: _, ref right } =>
         {
-            improve_ast(left.clone(), Some(expr.clone()), errors, can_compile);
-            improve_ast(right.clone(), Some(expr.clone()), errors, can_compile);
+            improve_ast(left.clone(), Some(expr.clone()), logs);
+            improve_ast(right.clone(), Some(expr.clone()), logs);
         },
         Expression::Grouping { expr: ref child } =>
         {
-            improve_ast(child.clone(), Some(expr.clone()), errors, can_compile);
+            improve_ast(child.clone(), Some(expr.clone()), logs);
         },
         Expression::Literal { token } => 
         {
@@ -308,15 +307,14 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, errors: &
                 }
                 if !preceded_by_unary
                 {
-                    errors.push(format!("error (line {}:{}): the int literal {} must be preceded by a unary \'-\' operator",
-                        token.line, token.col, 0x8000_0000u32));
-                    *can_compile = false;
+                    logs.push(Log{log_type: LogType::Error(ErrorType::UnnegatedMinimumIntegerLiteral),
+                        line_and_col: Some((token.line, token.col))});
                 }
             }
         },
         Expression::Unary { op: _, expr: ref child } =>
         {
-            improve_ast(child.clone(), Some(expr.clone()), errors, can_compile);
+            improve_ast(child.clone(), Some(expr.clone()), logs);
         },
         _ => { return; },
     }
