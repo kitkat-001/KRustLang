@@ -7,7 +7,7 @@ mod vm;
 mod math;
 mod log;
 
-use log::{Log, LogType, InfoType};
+use log::{Log, LogType, ErrorType};
 use cli_reader::{CLIInfo, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
@@ -62,7 +62,7 @@ fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<Log>)
     }
     else 
     {
-        logs.push(Log{log_type: LogType::Info(InfoType::CantCompile), line_and_col: None});
+        logs.push(Log{log_type: LogType::Error(ErrorType::CantCompile), line_and_col: None});
     }
 
     (output, logs)
@@ -103,7 +103,7 @@ mod tests
             Vec::new(), 
             vec![
                 format!("error (line 1:1): int literal \"{}\" must be at most {}.", 0x8000_0001u32, 0x8000_0000u32),
-                "info: could not compile due to errors.".to_string()
+                "error: could not compile due to errors.".to_string()
             ]
         );
     }
@@ -117,7 +117,7 @@ mod tests
             Vec::new(), 
             vec![
                 format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000u32),
-                "info: could not compile due to errors.".to_string()
+                "error: could not compile due to errors.".to_string()
             ]
         );
     }
@@ -142,7 +142,7 @@ mod tests
             Vec::new(), 
             vec![
                 format!("error (line 1:2): int literal \"{}\" must be at most {}.", 0x8000_0001u32, 0x8000_0000u32),
-                "info: could not compile due to errors.".to_string()
+                "error: could not compile due to errors.".to_string()
             ]
         );
     }
@@ -168,7 +168,7 @@ mod tests
             vec![
                 "error (line 1:2): unexpected end of file.".to_string(),
                 "error (line 1:2): expected \')\' following \'(\'.".to_string(),
-                "info: could not compile due to errors.".to_string()
+                "error: could not compile due to errors.".to_string()
             ]
         )
     }
@@ -183,7 +183,7 @@ mod tests
             vec![
                 "error (line 1:1): unexpected token.".to_string(),
                 "error (line 1:2): unexpected end of file.".to_string(),
-                "info: could not compile due to errors.".to_string()
+                "error: could not compile due to errors.".to_string()
             ]
         )
     }
@@ -197,7 +197,7 @@ mod tests
             Vec::new(),
             vec![
                 "error (line 1:2): expected expression within parentheses.".to_string(),
-                "info: could not compile due to errors.".to_string()
+                "error: could not compile due to errors.".to_string()
             ]
         )
     }
@@ -380,7 +380,7 @@ mod tests
                 Vec::new(),
                 vec![
                     format!("error (line 1:{}): unexpected token.", format!("{a}").chars().count() + 2),
-                    "info: could not compile due to errors.".to_string()
+                    "error: could not compile due to errors.".to_string()
                 ]
             );
         }

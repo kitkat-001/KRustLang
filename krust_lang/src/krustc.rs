@@ -9,7 +9,7 @@ use std::fs::{File, rename};
 use std::io::{prelude::*, Error};
 use std::path::PathBuf;
 use std::process::Command;
-use log::{Log, LogType, InfoType, ErrorType};
+use log::{Log, LogType, ErrorType};
 use cli_reader::{CLIInfo, read_command_line};
 use lexer::{LexerOutput, lex};
 use parser::{ParserOutput, parse};
@@ -42,7 +42,7 @@ fn main() {
         }
         else
         {
-            logs.push(Log{log_type: LogType::Info(InfoType::CantCompile), line_and_col: None});
+            logs.push(Log{log_type: LogType::Error(ErrorType::CantCompile), line_and_col: None});
         }
         for log in logs
         {

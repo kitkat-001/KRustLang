@@ -7,16 +7,8 @@ use colored::{ColoredString, Colorize, control::set_override};
 #[derive(Clone, PartialEq, Eq)]
 pub enum LogType
 {
-    Info(InfoType),
     Warning(WarningType),
     Error(ErrorType)
-}
-
-/// An enum representing any possible 
-#[derive(Clone, PartialEq, Eq)]
-pub enum InfoType
-{
-    CantCompile
 }
 
 /// An enum representing any possible warning.
@@ -57,6 +49,8 @@ pub enum ErrorType
 
     ExcessiveBytecode,
 
+    CantCompile,
+
     CompiledForDifferentTarget(usize),
     DivideByZero,
 }
@@ -83,16 +77,12 @@ impl Display for Log
         }
 
         let log_type: ColoredString = match self.log_type.clone() {
-            LogType::Info(_) => "info".to_string().white(),
             LogType::Warning(_) => "warning".to_string().yellow(),
             LogType::Error(_) => "error".to_string().red(),
-        }.bold();
+        };
 
+        let mut message_is_bold: bool = true;
         let message: String = { match self.log_type.clone() {
-            LogType::Info(info_type) => {match info_type
-            {
-                InfoType::CantCompile => "could not compile due to errors.".to_string()
-            }}
             LogType::Warning(warning_type) => {match warning_type
             {
                 WarningType::CLIArgRoundedDownU16(arg, value)
@@ -138,6 +128,11 @@ impl Display for Log
                     => format!("the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000u32),
 
                 ErrorType::ExcessiveBytecode => "could not compile as bytecode was too large.".to_string(),
+
+                ErrorType::CantCompile => {
+                    message_is_bold = false;
+                    "could not compile due to errors.".to_string()
+                }
             
                 
                 ErrorType::CompiledForDifferentTarget(ptr_size) 
@@ -145,18 +140,23 @@ impl Display for Log
                 ErrorType::DivideByZero => "division by zero.".to_string(),
             }},
         }};
-        if let None = self.line_and_col
+        
+        let mut output: String = if let None = self.line_and_col
         {
-            let output: String = format!("{log_type}: {message}");
-            write!(f, "{output}")
+            format!("{log_type}: {message}")
+            
         }
         else 
         {
-            let output: String = format!("{log_type} (line {}:{}): {message}", 
+            format!("{log_type} (line {}:{}): {message}", 
                 self.line_and_col.expect("checked by if statement").0, 
-                self.line_and_col.expect("checked by if statement").1);    
-            write!(f, "{output}")
+                self.line_and_col.expect("checked by if statement").1)
+        };
+        if message_is_bold
+        {
+            output = output.bold().to_string();
         }
+        write!(f, "{output}")
     }
 }
 
