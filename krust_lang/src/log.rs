@@ -77,7 +77,8 @@ impl Display for Log
         {
             if let ErrorType::FatalError = error_type
             {
-                return write!(f, "fatal error; program terminated");
+                let error: ColoredString = "fatal error; program terminated".to_string().red().bold();
+                return write!(f, "{error}");
             }
         }
 
@@ -85,7 +86,7 @@ impl Display for Log
             LogType::Info(_) => "info".to_string().white(),
             LogType::Warning(_) => "warning".to_string().yellow(),
             LogType::Error(_) => "error".to_string().red(),
-        };
+        }.bold();
 
         let message: String = { match self.log_type.clone() {
             LogType::Info(info_type) => {match info_type
@@ -146,14 +147,14 @@ impl Display for Log
         }};
         if let None = self.line_and_col
         {
-            let output: ColoredString = format!("{log_type}: {message}").bold();
+            let output: String = format!("{log_type}: {message}");
             write!(f, "{output}")
         }
         else 
         {
-            let output: ColoredString = format!("{log_type} (line {}:{}): {message}", 
+            let output: String = format!("{log_type} (line {}:{}): {message}", 
                 self.line_and_col.expect("checked by if statement").0, 
-                self.line_and_col.expect("checked by if statement").1).bold();    
+                self.line_and_col.expect("checked by if statement").1);    
             write!(f, "{output}")
         }
     }
