@@ -1,7 +1,7 @@
 //! The module for debug messages.
 
 use std::fmt::{Display, Formatter, Result};
-use colored::{ColoredString, Colorize, control::{set_override, unset_override}};
+use colored::{ColoredString, Colorize, control::set_override};
 
 /// An enum representing anything that can be logged.
 #[derive(Clone, PartialEq, Eq)]
@@ -181,6 +181,5 @@ pub fn all_to_string(logs: &Vec<Log>) -> Vec<String>
     {
         strings.push(ColoredString::from(format!("{log}").as_str()).clear().to_string());
     }
-    unset_override();
     strings
 }
