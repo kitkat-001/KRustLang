@@ -176,9 +176,11 @@ pub fn is_error(logs: &Vec<Log>) -> bool
 pub fn all_to_string(logs: &Vec<Log>) -> Vec<String>
 {
     let mut strings: Vec<String> = Vec::new();
+    set_override(false);
     for log in logs
     {
-        strings.push(format!("{log}"));
+        strings.push(ColoredString::from(format!("{log}").as_str()).clear().to_string());
     }
-    return strings;
+    unset_override();
+    strings
 }
