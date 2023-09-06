@@ -79,7 +79,7 @@ impl Display for Log
         let log_type: ColoredString = match self.log_type.clone() {
             LogType::Warning(_) => "warning".to_string().yellow(),
             LogType::Error(_) => "error".to_string().red(),
-        };
+        }.bold();
 
         let mut message_is_bold: bool = true;
         let message: String = { match self.log_type.clone() {
