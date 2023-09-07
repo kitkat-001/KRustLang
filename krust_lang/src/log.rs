@@ -32,6 +32,7 @@ pub enum ErrorType
     CLIRequiresNumArg(String),
     CLIRequiresNumArgLessThanU16(String, u16),
     CLIRequiresNumArgAtLeastU16(String, u16),
+    CLIRequiresBoolArg(String),
     CLIUnrecognizedArg(String),
     CLICantOpenFile(String),
     CLINoFile,
@@ -106,6 +107,8 @@ impl Display for Log
                     => format!("compiler flag \"{arg}\" requires an argument less than {bound}."),
                 ErrorType::CLIRequiresNumArgAtLeastU16(arg, bound) 
                     => format!("compiler flag \"{arg}\" requires an argument that's at least {bound}."),
+                ErrorType::CLIRequiresBoolArg(arg) 
+                    => format!("compiler flag \"{arg}\" requires a boolean argument."),
                 ErrorType::CLIUnrecognizedArg(arg)
                     => format!("unrecognized argument \"{arg}\"."),
                 ErrorType::CLICantOpenFile(path)

@@ -41,7 +41,7 @@ pub struct CompilerOutput
 }
 
 /// Compiles to bytecode.
-pub fn compile(parser_output: ParserOutput, cli_args: [u8; 1]) -> CompilerOutput
+pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
 {
     let mut bytecode: Option<Vec<u8>> = None;
     let mut logs: Vec<Log> = parser_output.logs.clone();

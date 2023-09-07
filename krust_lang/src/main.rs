@@ -39,7 +39,7 @@ fn main() {
 
 // Runs the code in the file.
 // TODO: Don't save all the printing till the end, instead print when printing should happen.
-fn run(file_path: String, cli_args: [u8; 1]) -> (Vec<String>, Vec<Log>)
+fn run(file_path: String, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>)
 {
     let lex_output: LexerOutput = lex(&file_path);
     let parse_output: ParserOutput = parse(lex_output);
@@ -89,7 +89,7 @@ mod tests
         fs::write(&file_path, code).expect("file will be created if it doesn't exist");
         let out_err = run(
             file_path,
-            [(usize::BITS / 8).try_into().expect("length of usize shouldn't be over 1024 bits")]);
+            [(usize::BITS / 8).try_into().expect("length of usize shouldn't be over 1024 bits"), 1]);
         assert_eq!(out_err.0, out);
         assert_eq!(all_to_string(&out_err.1), err);
     }

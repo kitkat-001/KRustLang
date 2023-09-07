@@ -7,6 +7,7 @@ use std::fs::read_to_string;
 use std::io;
 use std::num::ParseIntError;
 use std::panic::catch_unwind;
+use std::str::ParseBoolError;
 use std::thread;
 use log::{Log, LogType, ErrorType, WarningType};
 
@@ -14,10 +15,10 @@ use log::{Log, LogType, ErrorType, WarningType};
 pub struct CLIInfo
 {
     pub file_path: String,
-    pub cli_args: [u8; 1],
+    pub cli_args: [u8; 2],
 }
 
-const COMPILER_FLAGS: [&str; 1] = ["-pointer_size"];
+const COMPILER_FLAGS: [&str; 2] = ["-pointer_size", "-detailed_errors"];
 
 /// Get file name and compiler flags from the command line.
 pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>)
@@ -27,6 +28,7 @@ pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>)
     let input: Vec<String> = input.ok().expect("checked by if statement");
     let mut file_path: Option<String> = None;
     let mut ptr_size: u16 = min(usize::BITS, 2047).try_into().expect("should be valid as max value is less than u16::MAX");
+    let mut detailed_err: bool = true;
     let mut logs: Vec<Log> = Vec::new();
     let mut multiple_file_error: bool = false;
     for arg in input
@@ -48,13 +50,17 @@ pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>)
         {
             ptr_size = handle_ptr_size(&arg, &mut logs, ptr_size);
         }
+        else if arg.starts_with(COMPILER_FLAGS[1])
+        {
+            detailed_err = handle_detailed_err(&arg, &mut logs);
+        }
         else
         {
             handle_unrecognized_flag(&arg, &mut logs);
         }
     }
     
-    get_result(file_path, &mut logs, ptr_size, multiple_file_error)
+    get_result(file_path, &mut logs, ptr_size, detailed_err, multiple_file_error)
 }
 
 // Get the arguments from the command line.
@@ -105,6 +111,29 @@ fn handle_ptr_size (arg: &String, logs: &mut Vec<Log>, mut ptr_size: u16) -> u16
     ptr_size
 }
 
+// Handle the detail compiler flag.
+fn handle_detailed_err (arg: &String, logs: &mut Vec<Log>) -> bool
+{
+    let arg: &str = &arg[COMPILER_FLAGS[1].len()..];
+    if !arg.starts_with("=")
+    {
+        logs.push(Log{log_type: LogType::Error(ErrorType::CLIRequiresArg(COMPILER_FLAGS[1].to_string())), line_and_col: None});
+    }
+    else 
+    {
+        let parsed_arg: Result<bool, ParseBoolError> = arg[1..].parse::<bool>();
+        if let Err(ParseBoolError{..}) = parsed_arg
+        {
+            logs.push(Log{log_type: LogType::Error(ErrorType::CLIRequiresBoolArg(COMPILER_FLAGS[1].to_string())), line_and_col: None});
+        }
+        else 
+        {
+            return parsed_arg.ok().expect("should be valid as error handled earlier.");
+        }
+    }
+    true
+}
+
 // Handle unrecognized flags in the command line.
 fn handle_unrecognized_flag(arg: &String, logs: &mut Vec<Log>)
 {
@@ -122,6 +151,7 @@ fn get_result(
     file_path: Option<String>, 
     logs: &mut Vec<Log>, 
     ptr_size: u16, 
+    detailed_err: bool,
     multiple_file_error: bool)
     -> (Option<CLIInfo>, Vec<Log>)
 {
@@ -133,7 +163,7 @@ fn get_result(
     }
     else 
     {
-        handle_compiler_flag_issues(&file_path, logs, ptr_size, file_size)
+        handle_compiler_flag_issues(&file_path, logs, ptr_size, detailed_err, file_size)
     }
 }
 
@@ -165,11 +195,13 @@ fn handle_compiler_flag_issues(
     file_path: &Option<String>, 
     logs: &mut Vec<Log>, 
     ptr_size: u16, 
+    detailed_err: bool,
     file_size: usize) 
     -> (Option<CLIInfo>, Vec<Log>)
 {
     if let Some(file_path) = file_path
     {
+        let detailed_err: u8 = if detailed_err {1} else {0};
         let ptr_size_bytes: u8 = (ptr_size / 8).try_into().expect("ptr_size maximum is less than 2048");
         if ptr_size % 8 != 0
         {
@@ -187,9 +219,9 @@ fn handle_compiler_flag_issues(
         {
             logs.push(Log{log_type: LogType::Error(ErrorType::CLIFileToBig(ptr_size)),
                 line_and_col: None});
-            return (Some(CLIInfo{ file_path: file_path.to_string(), cli_args: [ptr_size_bytes] }), logs.clone());
+            return (Some(CLIInfo{ file_path: file_path.to_string(), cli_args: [ptr_size_bytes, detailed_err] }), logs.clone());
         }
-        (Some(CLIInfo{ file_path: file_path.to_string(), cli_args: [ptr_size_bytes] }), logs.clone())
+        (Some(CLIInfo{ file_path: file_path.to_string(), cli_args: [ptr_size_bytes, detailed_err] }), logs.clone())
     }
     else 
     {

@@ -52,7 +52,7 @@ fn main() {
 }
 
 // Produces bytecode from the file.
-fn generate_bytecode(file_path: &String, cli_args: [u8;1]) -> CompilerOutput
+fn generate_bytecode(file_path: &String, cli_args: [u8;2]) -> CompilerOutput
 {
     let lex_output: LexerOutput = lex(file_path);
     let parse_output: ParserOutput = parse(lex_output);
