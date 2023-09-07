@@ -7,6 +7,16 @@ use compiler::OpCode;
 
 use num_traits::FromPrimitive;
 
+// Contains info about a runtime error that could happen.
+struct RuntimeError<'a, T>
+{
+    condition: &'a (dyn Fn(T) -> bool),
+    error: ErrorType,
+    index: &'a mut usize,
+    bytecode: &'a Vec<u8>,
+    ptr_size: usize
+}
+
 /// Runs the bytecode.
 pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>)
 {
@@ -129,276 +139,120 @@ fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>,)
 // Gets the negative of an int.
 fn minus_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    let value: Option<i32> = pop_int_from_stack(stack);
-    if let Some(value) = value
-    {
-        let value: i32 = i32::wrapping_neg(value);
-        stack.append(&mut value.to_le_bytes().to_vec());
-    }
-    else 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
+    unary_int(stack, logs, |a: i32| i32::wrapping_neg(a));
 }
 
 // Adds two ints.
 fn add_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
-    let mut fail: bool = true;
-    if let Some(a) = a
-    {
-        if let Some(b) = b
-        {   
-            fail = false;
-            let c: i32 = i32::wrapping_add(a, b);
-            stack.append(&mut c.to_le_bytes().to_vec());
-        }
-    }
-    if fail 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
+    binary_int(stack, logs, |a, b| i32::wrapping_add(a, b), None);
 }
 
 // Subtracts two ints.
 fn subtract_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+
 {
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
-    let mut fail: bool = true;
-    if let Some(a) = a
-    {
-        if let Some(b) = b
-        {   
-            fail = false;
-            let c: i32 = i32::wrapping_sub(a, b);
-            stack.append(&mut c.to_le_bytes().to_vec());
-        }
-    }
-    if fail 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
+    binary_int(stack, logs, |a, b| i32::wrapping_sub(a, b), None);
 }
 
 // Multiplies two ints.
-fn multiply_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+fn multiply_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) 
 {
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
-    let mut fail: bool = true;
-    if let Some(a) = a
-    {
-        if let Some(b) = b
-        {   
-            fail = false;
-            let c: i32 = i32::wrapping_mul(a, b);
-            stack.append(&mut c.to_le_bytes().to_vec());
-        }
-    }
-    if fail 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
+    binary_int(stack, logs, |a, b| i32::wrapping_mul(a, b), None);
 }
 
 // Divides two ints. Reports an error if the second int is zero.
 fn divide_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>, ptr_size: usize)
 {
-    if *index + 2 * ptr_size > bytecode.len()
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
-    
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
-    let mut fail: bool = true;
-    if let Some(a) = a
-    {
-        if let Some(b) = b
-        {   
-            fail = false;
-            if b == 0
-            {
-                let mut bytes : [u8; (usize::BITS / 8) as usize] = [0; (usize::BITS / 8) as usize];
-                for i in 0..ptr_size
-                {
-                    bytes[i] = bytecode[*index];
-                    *index += 1;
-                }
-                let line: usize = usize::from_le_bytes(bytes);
-                bytes = [0; (usize::BITS / 8) as usize];
-                for i in 0..ptr_size
-                {
-                    bytes[i] = bytecode[*index];
-                    *index += 1;
-                }
-                let col: usize = usize::from_le_bytes(bytes);
-                logs.push(Log{log_type: LogType::Error(ErrorType::DivideByZero), line_and_col: Some((line, col))});
-                return;
-            }
-            let c: i32 = i32::wrapping_div(a, b);
-            stack.append(&mut c.to_le_bytes().to_vec());
-        }
-    }
-    if fail 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
-    *index += 2 * ptr_size as usize;
+    binary_int(stack, logs,  |a, b| if b == 0 {0} else {i32::wrapping_div(a, b)}, 
+        Some(RuntimeError::<(i32, i32)>{
+            condition: &(|(_a, b)| b == 0),
+            error: ErrorType::DivideByZero,
+            index, bytecode, ptr_size
+    }))
 }
 
 // Gets the modulo of two ints. Reports an error if the second int is zero.
 fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>, ptr_size: usize)
 {
-    if *index + 2 * ptr_size > bytecode.len()
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
-    
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
-    let mut fail: bool = true;
-    if let Some(a) = a
-    {
-        if let Some(b) = b
-        {   
-            fail = false;
-            if b == 0
-            {
-                let mut bytes : [u8; (usize::BITS / 8) as usize] = [0; (usize::BITS / 8) as usize];
-                for i in 0..ptr_size
-                {
-                    bytes[i] = bytecode[*index];
-                    *index += 1;
-                }
-                let line: usize = usize::from_le_bytes(bytes);
-                bytes = [0; (usize::BITS / 8) as usize];
-                for i in 0..ptr_size
-                {
-                    bytes[i] = bytecode[*index];
-                    *index += 1;
-                }
-                let col: usize = usize::from_le_bytes(bytes);
-                logs.push(Log{log_type: LogType::Error(ErrorType::DivideByZero), line_and_col: Some((line, col))});
-                return;
-            }
-            let c: i32 = i32::wrapping_rem_euclid(a, b);
-            stack.append(&mut c.to_le_bytes().to_vec());
-        }
-    }
-    if fail 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
-    *index += 2 * ptr_size as usize;
+    binary_int(stack, logs,  |a, b| if b == 0 {0} else {i32::wrapping_rem_euclid(a, b)}, 
+        Some(RuntimeError::<(i32, i32)>{
+            condition: &(|(_a, b)| b == 0),
+            error: ErrorType::DivideByZero,
+            index, bytecode, ptr_size
+    }))
 }
 
 // Finds the complement of an int.
 fn complement_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    let value: Option<i32> = pop_int_from_stack(stack);
-    if let Some(value) = value
-    {
-        let value: i32 = !value;
-        stack.append(&mut value.to_le_bytes().to_vec());
-    }
-    else 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
+    unary_int(stack, logs, |a: i32| !a);
 }
 
 
 // Left shifts an int by an int
 fn left_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
-    let mut fail: bool = true;
-    if let Some(a) = a
-    {
-        if let Some(b) = b
-        {   
-            fail = false;
-            let c: i32 = shift_int(a, b);
-            stack.append(&mut c.to_le_bytes().to_vec());
-        }
-    }
-    if fail 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
+    binary_int(stack, logs, |a, b| shift_int(a, b), None);
 }
 
 // Left shifts an int by an int
 fn right_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
-    let mut fail: bool = true;
-    if let Some(a) = a
-    {
-        if let Some(b) = b
-        {   
-            fail = false;
-            let c: i32 = math::shift_int(a, -b);
-            stack.append(&mut c.to_le_bytes().to_vec());
-        }
-    }
-    if fail 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
+    binary_int(stack, logs, |a, b| shift_int(a, -b), None);
 }
 
 // Bitwise ands two ints.
 fn and_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
-    let mut fail: bool = true;
-    if let Some(a) = a
-    {
-        if let Some(b) = b
-        {   
-            fail = false;
-            let c: i32 = a & b;
-            stack.append(&mut c.to_le_bytes().to_vec());
-        }
-    }
-    if fail 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
+    binary_int(stack, logs, |a, b| a & b, None);
 }
 
 // Bitwise xors two ints.
 fn xor_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
-    let mut fail: bool = true;
-    if let Some(a) = a
-    {
-        if let Some(b) = b
-        {   
-            fail = false;
-            let c: i32 = a ^ b;
-            stack.append(&mut c.to_le_bytes().to_vec());
-        }
-    }
-    if fail 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
-    }
+    binary_int(stack, logs, |a, b| a ^ b, None);
 }
 
 // Bitwise ors two ints.
 fn or_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
+    binary_int(stack, logs, |a, b| a | b, None);
+}
+
+// Performs a unary operation on an int.
+fn unary_int<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F)
+    where F: Fn(i32) -> i32
+{
+    let value: Option<i32> = pop_int_from_stack(stack);
+    if let Some(value) = value
+    {
+        let value: i32 = func(value);
+        stack.append(&mut value.to_le_bytes().to_vec());
+    }
+    else 
+    {
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
+    }
+}
+
+fn binary_int<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F, error: Option<RuntimeError<(i32, i32)>>)
+    where F: Fn(i32, i32) -> i32
+{
+    let detailed_err: bool = if let None = error {false} else {true}; // TODO: Make the else clause dependent on a flag.
+    if detailed_err
+    {
+        let error: &RuntimeError<(i32, i32)> = error.as_ref().expect("detailed_err is true");
+        let index: usize = *error.index;
+        let ptr_size: usize = error.ptr_size;
+        let bytecode: &Vec<u8> = error.bytecode;
+        if index + 2 * ptr_size > bytecode.len()
+        {
+            logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
+            return;
+        }
+    }
+
     let b: Option<i32> = pop_int_from_stack(stack);
     let a: Option<i32> = pop_int_from_stack(stack);
     let mut fail: bool = true;
@@ -407,7 +261,43 @@ fn or_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
         if let Some(b) = b
         {   
             fail = false;
-            let c: i32 = a | b;
+            if let Some(error_some) = error
+            {
+                let condition: &dyn Fn((i32, i32)) -> bool = error_some.condition;
+                let index: &mut usize = error_some.index;
+                let ptr_size: usize = error_some.ptr_size;
+                if condition((a, b))
+                {
+                    if detailed_err
+                    {
+                        let bytecode: &Vec<u8> = error_some.bytecode;
+                        let mut bytes : [u8; (usize::BITS / 8) as usize] = [0; (usize::BITS / 8) as usize];
+                        for i in 0..ptr_size
+                        {
+                            bytes[i] = bytecode[*index];
+                            *index += 1;
+                        }
+                        let line: usize = usize::from_le_bytes(bytes);
+                        bytes = [0; (usize::BITS / 8) as usize];
+                        for i in 0..ptr_size
+                        {
+                            bytes[i] = bytecode[*index];
+                            *index += 1;
+                        }
+                        let col: usize = usize::from_le_bytes(bytes);
+                        logs.push(Log{log_type: LogType::Error(error_some.error), line_and_col: Some((line, col))});
+                    }
+                    else 
+                    {
+                        logs.push(Log{log_type: LogType::Error(error_some.error), line_and_col: None});
+                    }
+                }
+                else if detailed_err
+                {
+                    *index += 2 * ptr_size;
+                }
+            }
+            let c: i32 = func(a, b);
             stack.append(&mut c.to_le_bytes().to_vec());
         }
     }
