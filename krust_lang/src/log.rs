@@ -176,7 +176,7 @@ pub fn is_error(logs: &Vec<Log>) -> bool
     false
 }
 
-/// Converts all logs into strings.
+/// Converts all logs into strings and disables colorizing. Used for testing.
 pub fn all_to_string(logs: &Vec<Log>) -> Vec<String>
 {
     let mut strings: Vec<String> = Vec::new();

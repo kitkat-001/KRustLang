@@ -325,7 +325,6 @@ fn get_ptr_size(bytecode: &Vec<u8>) -> usize { bytecode[0] as usize }
 // Gets whether or not runtime errors have extra info.
 fn get_detailed_err(bytecode: &Vec<u8>) -> bool { bytecode[1] != 0}
 
-
 // Removes an integer from the stack if possible and returns it.
 fn pop_int_from_stack(stack: &mut Vec<u8>) -> Option<i32>
 {
