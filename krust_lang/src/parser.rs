@@ -58,6 +58,13 @@ impl Expression
     }
 }
 
+// Contains info about operators with the same precendence.
+struct PrecendenceClass
+{
+    operators: Vec<TokenType>,
+    arg_count: usize
+}
+
 /// Parse the output from the lexer.
 pub fn parse(lex_output: LexerOutput) -> ParserOutput
 {
@@ -78,7 +85,7 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput
 // Get the expression from the token list.
 fn get_expression(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
 {
-    get_or(tokens, logs, index)
+    get_operators(tokens, logs, index, 0)
 }
 
 // Get a primary expression (literals and grouping expressions).
@@ -140,144 +147,59 @@ fn handle_paren(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> 
     Expression::Grouping { expr }
 }
 
-// Get a unary expression.
-fn get_unary(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
+fn get_operators(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize, precendence: usize) -> Expression
 {
-    if tokens[*index].token_type == TokenType::Minus || tokens[*index].token_type == TokenType::Tilde
-    {
-        let op: Token = tokens[*index];
-        *index += 1;
-        let expr: Expression = get_unary(tokens, logs, index);
-        Expression::Unary { op, expr: Box::new(expr) }
-    }
+    let operator_list: [PrecendenceClass; 7] = 
+    [
+        PrecendenceClass{operators: vec![TokenType::Bar], arg_count: 2},
+        PrecendenceClass{operators: vec![TokenType::Caret], arg_count: 2},
+        PrecendenceClass{operators: vec![TokenType::Ampersand], arg_count: 2},
+        PrecendenceClass{operators: vec![TokenType::LeftShift, TokenType::RightShift], arg_count: 2},
+        PrecendenceClass{operators: vec![TokenType::Plus, TokenType::Minus], arg_count: 2},
+        PrecendenceClass{operators: vec![TokenType::Star, TokenType::Slash, TokenType::Percent], arg_count: 2},
+        PrecendenceClass{operators: vec![TokenType::Minus, TokenType::Tilde], arg_count: 1}
+    ];
+
+    if precendence >= operator_list.len() { get_primary(tokens, logs, index) }
     else 
     {
-        get_primary(tokens, logs, index)
+        if operator_list[precendence].arg_count == 1
+        {
+            if operator_list[precendence].operators.contains(&tokens[*index].token_type)
+            {
+                let op: Token = tokens[*index];
+                *index += 1;
+                let expr: Expression = get_operators(tokens, logs, index, precendence);
+                Expression::Unary { op, expr: Box::new(expr) }
+            }
+            else 
+            {
+                get_operators(tokens, logs, index, precendence + 1)    
+            }
+        }
+        else if operator_list[precendence].arg_count == 2
+        {
+            let mut expr: Expression = get_operators(tokens, logs, index, precendence + 1);
+            while !expr.is_eof() && operator_list[precendence].operators.contains(&tokens[*index].token_type)
+            {
+                let op: Token = tokens[*index];
+                *index += 1;
+                let right: Expression = get_operators(tokens, logs, index, precendence + 1);
+                let is_eof: bool = right.is_eof();
+                expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
+                if is_eof
+                {
+                    return expr;
+                }
+            }
+            expr
+        }
+        else
+        {
+            panic!("currently no other options for operators' argument counts.")
+        }
     }
 }
-
-// Get a multiplicative expression (*, /).
-fn get_multiplicative(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
-{
-    let mut expr: Expression = get_unary(tokens, logs, index);
-    while !expr.is_eof() &&
-        (tokens[*index].token_type == TokenType::Star 
-            || tokens[*index].token_type == TokenType::Slash
-            || tokens[*index].token_type == TokenType::Percent)
-    {
-        let op: Token = tokens[*index];
-        *index += 1;
-        let right: Expression = get_unary(tokens, logs, index);
-        let is_eof: bool = right.is_eof();
-        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
-        if is_eof
-        {
-            return expr;
-        }
-    }
-    expr
-} 
-
-// Get a additive expression (+, -).
-fn get_additive(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
-{
-    let mut expr: Expression = get_multiplicative(tokens, logs, index);
-    while !expr.is_eof() &&
-        (tokens[*index].token_type == TokenType::Plus || tokens[*index].token_type == TokenType::Minus)
-    {
-        let op: Token = tokens[*index];
-        *index += 1;
-        let right: Expression = get_multiplicative(tokens, logs, index);
-        let is_eof: bool = right.is_eof();
-        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
-        if is_eof
-        {
-            return expr;
-        }
-    }
-    expr
-} 
-
-// Get a shift expression (<<, >>).
-fn get_shift(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
-{
-    let mut expr: Expression = get_additive(tokens, logs, index);
-    while !expr.is_eof() &&
-        (tokens[*index].token_type == TokenType::LeftShift 
-            || tokens[*index].token_type == TokenType::RightShift)
-    {
-        let op: Token = tokens[*index];
-        *index += 1;
-        let right: Expression = get_additive(tokens, logs, index);
-        let is_eof: bool = right.is_eof();
-        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
-        if is_eof
-        {
-            return expr;
-        }
-    }
-    expr
-} 
-
-// Gets a bitwise and expression.
-fn get_and(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
-{
-    let mut expr: Expression = get_shift(tokens, logs, index);
-    while !expr.is_eof() &&
-        (tokens[*index].token_type == TokenType::Ampersand)
-    {
-        let op: Token = tokens[*index];
-        *index += 1;
-        let right: Expression = get_shift(tokens, logs, index);
-        let is_eof: bool = right.is_eof();
-        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
-        if is_eof
-        {
-            return expr;
-        }
-    }
-    expr
-} 
-
-// Gets a bitwise xor expression.
-fn get_xor(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
-{
-    let mut expr: Expression = get_and(tokens, logs, index);
-    while !expr.is_eof() &&
-        (tokens[*index].token_type == TokenType::Caret)
-    {
-        let op: Token = tokens[*index];
-        *index += 1;
-        let right: Expression = get_and(tokens, logs, index);
-        let is_eof: bool = right.is_eof();
-        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
-        if is_eof
-        {
-            return expr;
-        }
-    }
-    expr
-} 
-
-// Gets a bitwise or expression.
-fn get_or(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
-{
-    let mut expr: Expression = get_xor(tokens, logs, index);
-    while !expr.is_eof() &&
-        (tokens[*index].token_type == TokenType::Bar)
-    {
-        let op: Token = tokens[*index];
-        *index += 1;
-        let right: Expression = get_xor(tokens, logs, index);
-        let is_eof: bool = right.is_eof();
-        expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
-        if is_eof
-        {
-            return expr;
-        }
-    }
-    expr
-} 
 
 // Simplify and correct the AST.
 fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mut Vec<Log>)
