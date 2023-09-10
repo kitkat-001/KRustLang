@@ -1,19 +1,13 @@
-mod cli_reader;
-mod lexer;
-mod parser;
-mod compiler;
-mod log;
-
 use std::env::{current_dir, set_current_dir};
 use std::fs::{File, rename};
 use std::io::{prelude::*, Error};
 use std::path::PathBuf;
 use std::process::Command;
-use log::{Log, LogType, ErrorType};
-use cli_reader::{CLIInfo, read_command_line};
-use lexer::{LexerOutput, lex};
-use parser::{ParserOutput, parse};
-use compiler::{CompilerOutput, compile};
+use krust::log::{Log, LogType, ErrorType};
+use krust::cli_reader::{CLIInfo, read_command_line};
+use krust::lexer::{LexerOutput, lex};
+use krust::parser::{ParserOutput, parse};
+use krust::compiler::{CompilerOutput, compile};
 
 fn main() {
     let cli_output: (Option<CLIInfo>, Vec<Log>)  = read_command_line();
@@ -62,7 +56,7 @@ fn generate_bytecode(file_path: &String, cli_args: [u8;2]) -> CompilerOutput
 // Create the exe.
 fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &String) -> Result<(), Error>
 {
-    let mut file: File = File::create(concat!(env!("CARGO_MANIFEST_DIR"), "/", "src/program.rs"))?;
+    let mut file: File = File::create(concat!(env!("CARGO_MANIFEST_DIR"), "/", "src/bin/program.rs"))?;
     file.write_all(create_code(bytecode).as_bytes())?;
     let curr_dir: PathBuf = current_dir()?;
     set_current_dir(env!("CARGO_MANIFEST_DIR"))?;
@@ -72,7 +66,7 @@ fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &String) -> Result<(), Err
         curr_dir.to_str().expect("should have a string value").to_string() + "/" 
             + file_path.as_str()
     )?;
-    let mut file: File = File::create(concat!(env!("CARGO_MANIFEST_DIR"), "/", "src/program.rs"))?;
+    let mut file: File = File::create(concat!(env!("CARGO_MANIFEST_DIR"), "/", "src/bin/program.rs"))?;
     file.write_all("fn main() {}".as_bytes())?;
     Command::new("cargo").arg("build").output()?;
     Ok(())
@@ -81,21 +75,19 @@ fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &String) -> Result<(), Err
 // Creates the rust code that can be compiled into an executable.
 fn create_code(bytecode: &Vec<u8>) -> String
 {
-    format!("mod lexer;
-mod parser;
-mod compiler;
-mod vm;
+    format!("use krust::log::Log;
+use krust::vm;
     
 fn main(){{
     let bytecode: Vec<u8> = vec!{:?};
-    let out_err: (Vec<String>, Option<String>) = vm::run(&bytecode);
+    let out_err: (Vec<String>, Vec<Log>) = vm::run(&bytecode);
     for string in out_err.0
     {{
         println!(\"{{}}\", string);
     }}
-    if let Some(err) = out_err.1
+    for log in out_err.1
     {{
-        eprintln!(\"{{}}\", err);
+        eprintln!(\"{{}}\", log);
     }}
 }}", bytecode)
 }

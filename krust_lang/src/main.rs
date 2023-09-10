@@ -1,16 +1,9 @@
-mod cli_reader;
-mod lexer;
-mod parser;
-mod compiler;
-mod vm;
-
-mod log;
-
-use log::{Log, LogType, ErrorType};
-use cli_reader::{CLIInfo, read_command_line};
-use lexer::{LexerOutput, lex};
-use parser::{ParserOutput, parse};
-use compiler::{CompilerOutput, compile};
+use krust::log::{Log, LogType, ErrorType};
+use krust::cli_reader::{CLIInfo, read_command_line};
+use krust::lexer::{LexerOutput, lex};
+use krust::parser::{ParserOutput, parse};
+use krust::compiler::{CompilerOutput, compile};
+use krust::vm;
 
 fn main() {
     let cli_output: (Option<CLIInfo>, Vec<Log>)  = read_command_line();
@@ -71,8 +64,8 @@ fn run(file_path: String, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>)
 #[cfg(test)]
 mod tests
 {
-    use crate::vm::math;
-    use crate::log;
+    use krust::vm::math;
+    use krust::log;
     use super::run;
 
     use std::fs;
