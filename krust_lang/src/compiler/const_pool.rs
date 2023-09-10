@@ -29,7 +29,7 @@ impl ConstantPool
             }
         }
 
-        if self.pool.len() > (1 << self.ptr_size) - 4
+        if self.pool.len() > (1 << (self.ptr_size * 8)) - 4
         {
             return Err(());
         }
