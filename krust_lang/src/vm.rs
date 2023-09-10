@@ -248,7 +248,8 @@ fn unary_int<F>(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut V
     if let Some(value) = value
     {
         let value: i32 = func(value);
-        push_int_to_stack(stack, const_pool, value);
+        let result: Result<(), ()> = push_int_to_stack(stack, const_pool, value);
+        if let Err(_) = result { logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});}
     }
     else 
     {
@@ -287,7 +288,8 @@ fn binary_int<F>(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut 
                 handle_error(&mut error, (a, b), detailed_err, logs)
             }
             let c: i32 = func(a, b);
-            push_int_to_stack(stack, const_pool, c);
+            let result: Result<(), ()> = push_int_to_stack(stack, const_pool, c);
+            if let Err(_) = result { logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});}
         }
     }
     if fail 
