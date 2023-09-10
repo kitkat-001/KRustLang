@@ -4,6 +4,7 @@ use crate::{log, math, compiler};
 use log::{Log, LogType, ErrorType, is_error};
 use math::shift_int;
 use compiler::OpCode;
+use compiler::const_pool::ConstantPool;
 
 use num_traits::FromPrimitive;
 
@@ -32,6 +33,7 @@ pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>)
 
     let mut index: usize = 2;
     let mut stack: Vec<u8> = Vec::new();
+    let mut const_pool: ConstantPool = ConstantPool { pool: Vec::new(), ptr_size: get_ptr_size(bytecode) };
     while index < bytecode.len()
     {
         let curr_op: Option<OpCode> = FromPrimitive::from_u8(bytecode[index]);
@@ -41,7 +43,7 @@ pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>)
         {
             Some(op) => 
             {
-                if match_op(op, bytecode, &mut stack, &mut index, &mut output, &mut logs)
+                if match_op(op, bytecode, &mut stack, &mut const_pool, &mut index, &mut output, &mut logs)
                 {
                     return (output, logs);
                 }
@@ -80,6 +82,7 @@ fn match_op(
     op: OpCode, 
     bytecode: &Vec<u8>, 
     stack: &mut Vec<u8>,
+    const_pool: &mut ConstantPool,
     index: &mut usize,
     output: &mut Vec<String>,
     logs: &mut Vec<Log>,
@@ -87,32 +90,53 @@ fn match_op(
 {
     match op
     {
-        OpCode::PushInt => push_int(bytecode, stack, index, logs),
-        OpCode::PopInt => pop_int(stack, output, logs),
-        OpCode::MinusInt => minus_int(stack, logs),
-        OpCode::AddInt => add_int(stack, logs),
-        OpCode::SubtractInt => subtract_int(stack, logs),
-        OpCode::MultiplyInt => multiply_int(stack, logs),
-        OpCode::DivideInt => divide_int(bytecode, stack, index, logs),
-        OpCode::ModuloInt => modulo_int(bytecode, stack, index, logs),
-        OpCode::ComplementInt => complement_int(stack, logs),
-        OpCode::LeftShiftInt => left_shift_int(stack, logs),
-        OpCode::RightShiftInt => right_shift_int(stack, logs),
-        OpCode::AndInt => and_int(stack, logs),
-        OpCode::XorInt => xor_int(stack, logs),
-        OpCode::OrInt => or_int(stack, logs),
+        OpCode::Const => fill_const_pool(bytecode, const_pool, index),
+        OpCode::Push => push(bytecode, stack, index, logs),
+        OpCode::PopInt => pop_int(stack, const_pool, output, logs),
+        OpCode::MinusInt => minus_int(stack, const_pool, logs),
+        OpCode::AddInt => add_int(stack, const_pool, logs),
+        OpCode::SubtractInt => subtract_int(stack, const_pool, logs),
+        OpCode::MultiplyInt => multiply_int(stack, const_pool, logs),
+        OpCode::DivideInt => divide_int(bytecode, stack, const_pool, index, logs),
+        OpCode::ModuloInt => modulo_int(bytecode, stack, const_pool, index, logs),
+        OpCode::ComplementInt => complement_int(stack, const_pool, logs),
+        OpCode::LeftShiftInt => left_shift_int(stack, const_pool, logs),
+        OpCode::RightShiftInt => right_shift_int(stack, const_pool, logs),
+        OpCode::AndInt => and_int(stack, const_pool, logs),
+        OpCode::XorInt => xor_int(stack, const_pool, logs),
+        OpCode::OrInt => or_int(stack, const_pool, logs),
     };
     is_error(logs)
 }
 
-// Pushes an int from the bytecode to the stack.
-fn push_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>)
+// Adds all values from the bytecode into the constant pool.
+fn fill_const_pool(bytecode: &Vec<u8>, const_pool: &mut ConstantPool, index: &mut usize)
+{
+    let mut length_as_bytes: Vec<u8> = bytecode[*index..*index+const_pool.ptr_size as usize].to_vec();
+    while length_as_bytes.len() < usize::BITS as usize / 8 as usize
+    {
+        length_as_bytes.push(0);
+    }
+    let length = usize::from_le_bytes(length_as_bytes.try_into().expect("while statement made this the right size"));
+    *index += const_pool.ptr_size as usize;
+
+    for _i in 0..length
+    {
+        const_pool.pool.push(bytecode[*index]);
+        *index += 1;
+    }
+}
+
+// Pushes an address from the bytecode to the stack.
+fn push(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>)
 {
     if *index + 4 > bytecode.len()
     {
         logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
+        return;
     }
-    for _i in 0..4
+
+    for _i in 0..get_ptr_size(bytecode)
     {
         stack.push(bytecode[*index]);
         *index += 1;
@@ -120,12 +144,12 @@ fn push_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &m
 }
 
 // Pops an int from the stack and adds it to the output.
-fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>,)
+fn pop_int(stack: &mut Vec<u8>, const_pool: &ConstantPool, output: &mut Vec<String>, logs: &mut Vec<Log>,)
 {
-    let value: Option<i32> = pop_int_from_stack(stack);
+    let value: Option<i32> = pop_int_from_stack(stack, const_pool);
     if let Some(value) = value
     {
-        output.push(format!("{}", value));
+        output.push(format!("{value}"));
     }
     else
     {
@@ -134,34 +158,33 @@ fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>,)
 }
 
 // Gets the negative of an int.
-fn minus_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+fn minus_int(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>)
 {
-    unary_int(stack, logs, |a: i32| i32::wrapping_neg(a));
+    unary_int(stack, const_pool, logs, |a: i32| i32::wrapping_neg(a));
 }
 
 // Adds two ints.
-fn add_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+fn add_int(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs, |a, b| i32::wrapping_add(a, b), None);
+    binary_int(stack, const_pool, logs, |a, b| i32::wrapping_add(a, b), None);
 }
 
 // Subtracts two ints.
-fn subtract_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
-
+fn subtract_int(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs, |a, b| i32::wrapping_sub(a, b), None);
+    binary_int(stack, const_pool, logs, |a, b| i32::wrapping_sub(a, b), None);
 }
 
 // Multiplies two ints.
-fn multiply_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) 
+fn multiply_int(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>) 
 {
-    binary_int(stack, logs, |a, b| i32::wrapping_mul(a, b), None);
+    binary_int(stack, const_pool, logs, |a, b| i32::wrapping_mul(a, b), None);
 }
 
 // Divides two ints. Reports an error if the second int is zero.
-fn divide_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>)
+fn divide_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, const_pool: &mut ConstantPool, index: &mut usize, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs,  |a, b| if b == 0 {0} else {i32::wrapping_div(a, b)}, 
+    binary_int(stack, const_pool, logs,  |a, b| if b == 0 {0} else {i32::wrapping_div(a, b)}, 
         Some(RuntimeError::<(i32, i32)>{
             condition: &(|(_a, b)| b == 0),
             error: ErrorType::DivideByZero,
@@ -170,9 +193,9 @@ fn divide_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, logs:
 }
 
 // Gets the modulo of two ints. Reports an error if the second int is zero.
-fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>)
+fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, const_pool: &mut ConstantPool, index: &mut usize, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs,  |a, b| if b == 0 {0} else {i32::wrapping_rem_euclid(a, b)}, 
+    binary_int(stack, const_pool, logs,  |a, b| if b == 0 {0} else {i32::wrapping_rem_euclid(a, b)}, 
         Some(RuntimeError::<(i32, i32)>{
             condition: &(|(_a, b)| b == 0),
             error: ErrorType::DivideByZero,
@@ -181,51 +204,51 @@ fn modulo_int(bytecode: &Vec<u8>,  stack: &mut Vec<u8>, index: &mut usize, logs:
 }
 
 // Finds the complement of an int.
-fn complement_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+fn complement_int(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>)
 {
-    unary_int(stack, logs, |a: i32| !a);
+    unary_int(stack, const_pool, logs, |a: i32| !a);
 }
 
 
 // Left shifts an int by an int
-fn left_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+fn left_shift_int(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs, |a, b| shift_int(a, b), None);
+    binary_int(stack, const_pool, logs, |a, b| shift_int(a, b), None);
 }
 
 // Left shifts an int by an int
-fn right_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+fn right_shift_int(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs, |a, b| shift_int(a, -b), None);
+    binary_int(stack, const_pool, logs, |a, b| shift_int(a, -b), None);
 }
 
 // Bitwise ands two ints.
-fn and_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+fn and_int(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs, |a, b| a & b, None);
+    binary_int(stack, const_pool, logs, |a, b| a & b, None);
 }
 
 // Bitwise xors two ints.
-fn xor_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+fn xor_int(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs, |a, b| a ^ b, None);
+    binary_int(stack, const_pool, logs, |a, b| a ^ b, None);
 }
 
 // Bitwise ors two ints.
-fn or_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+fn or_int(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs, |a, b| a | b, None);
+    binary_int(stack, const_pool, logs, |a, b| a | b, None);
 }
 
 // Performs a unary operation on an int.
-fn unary_int<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F)
+fn unary_int<F>(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>, func: F)
     where F: Fn(i32) -> i32
 {
-    let value: Option<i32> = pop_int_from_stack(stack);
+    let value: Option<i32> = pop_int_from_stack(stack, const_pool);
     if let Some(value) = value
     {
         let value: i32 = func(value);
-        stack.append(&mut value.to_le_bytes().to_vec());
+        push_int_to_stack(stack, const_pool, value);
     }
     else 
     {
@@ -234,7 +257,7 @@ fn unary_int<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F)
 }
 
 // Performs a binary operation on a pair of ints.
-fn binary_int<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F, error: Option<RuntimeError<(i32, i32)>>)
+fn binary_int<F>(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, logs: &mut Vec<Log>, func: F, error: Option<RuntimeError<(i32, i32)>>)
     where F: Fn(i32, i32) -> i32
 {
     let detailed_err: bool = if let Some(error) = &error
@@ -251,8 +274,8 @@ fn binary_int<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F, error: Optio
         return;
     }
 
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
+    let b: Option<i32> = pop_int_from_stack(stack, const_pool);
+    let a: Option<i32> = pop_int_from_stack(stack, const_pool);
     let mut fail: bool = true;
     if let Some(a) = a
     {
@@ -264,7 +287,7 @@ fn binary_int<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F, error: Optio
                 handle_error(&mut error, (a, b), detailed_err, logs)
             }
             let c: i32 = func(a, b);
-            stack.append(&mut c.to_le_bytes().to_vec());
+            push_int_to_stack(stack, const_pool, c);
         }
     }
     if fail 
@@ -278,7 +301,7 @@ fn errors_stored_incorrectly<T>(error: &RuntimeError<T>) -> bool
 {
     let index: usize = *error.index;
     let bytecode: &Vec<u8> = error.bytecode;
-    index + 2 * get_ptr_size(bytecode) > bytecode.len()
+    index + 2 * get_ptr_size(bytecode) as usize > bytecode.len()
 }
 
 // Handles runtime errors.
@@ -287,20 +310,20 @@ fn handle_error<T>(error: &mut RuntimeError<T>, value: T, detailed_err: bool, lo
     let condition: &dyn Fn(T) -> bool = error.condition;
     let index: &mut usize = error.index;
     let bytecode: &Vec<u8> = error.bytecode;
-    let ptr_size: usize = get_ptr_size(bytecode);
+    let ptr_size: u8 = get_ptr_size(bytecode);
     if condition(value)
     {
         if detailed_err
         {
             let mut bytes : [u8; (usize::BITS / 8) as usize] = [0; (usize::BITS / 8) as usize];
-            for i in 0..ptr_size
+            for i in 0..ptr_size as usize
             {
                 bytes[i] = bytecode[*index];
                 *index += 1;
             }
             let line: usize = usize::from_le_bytes(bytes);
             bytes = [0; (usize::BITS / 8) as usize];
-            for i in 0..ptr_size
+            for i in 0..ptr_size as usize
             {
                 bytes[i] = bytecode[*index];
                 *index += 1;
@@ -315,30 +338,43 @@ fn handle_error<T>(error: &mut RuntimeError<T>, value: T, detailed_err: bool, lo
     }
     else if detailed_err
     {
-        *index += 2 * get_ptr_size(bytecode);
+        *index += 2 * get_ptr_size(bytecode) as usize;
     }
 }
 
 // Gets the pointer size.
-fn get_ptr_size(bytecode: &Vec<u8>) -> usize { bytecode[0] as usize }
+fn get_ptr_size(bytecode: &Vec<u8>) -> u8 { bytecode[0] }
 
 // Gets whether or not runtime errors have extra info.
 fn get_detailed_err(bytecode: &Vec<u8>) -> bool { bytecode[1] != 0}
 
-// Removes an integer from the stack if possible and returns it.
-fn pop_int_from_stack(stack: &mut Vec<u8>) -> Option<i32>
+// Adds an int to the stack.
+fn push_int_to_stack(stack: &mut Vec<u8>, const_pool: &mut ConstantPool, value: i32) -> Result<(), ()>
 {
-    if stack.len() < 4
+    stack.append(&mut const_pool.insert_int(value)?.to_le_bytes()[0..const_pool.ptr_size as usize].try_into().expect("should be able to become vec"));
+    Ok(())
+}
+
+// Removes an integer from the stack if possible and returns it.
+fn pop_int_from_stack(stack: &mut Vec<u8>, const_pool: &ConstantPool) -> Option<i32>
+{
+    if stack.len() < const_pool.ptr_size as usize
     {
         None
     }
     else 
     {
-        let mut bytes : [u8; 4] = [0, 0, 0, 0];
-        for i in 0..4
+        let mut bytes : Vec<u8> = Vec::new();
+        for _i in 0..const_pool.ptr_size as usize
         {
-            bytes[4 - i - 1] = stack.pop().expect("stack was checked");
+            bytes.push(stack.pop().expect("stack was checked"));
         }
-        Some(i32::from_le_bytes(bytes))
+        bytes.reverse();
+        while bytes.len() < (usize::BITS / 8) as usize
+        {
+            bytes.push(0);
+        }
+
+        const_pool.get_int(usize::from_le_bytes(bytes.try_into().expect("while loop made it right size")))
     }
 }
