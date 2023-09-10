@@ -130,7 +130,7 @@ fn fill_const_pool(bytecode: &Vec<u8>, const_pool: &mut ConstantPool, index: &mu
 // Pushes an address from the bytecode to the stack.
 fn push(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>)
 {
-    if *index + 4 > bytecode.len()
+    if *index + get_ptr_size(bytecode) as usize > bytecode.len()
     {
         logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
         return;
