@@ -1,10 +1,12 @@
 //! The module for the virtual machine used by the language.
 
-use crate::{log, math, compiler};
+pub mod math;
+
+use crate::{log, compiler};
 use log::{Log, LogType, ErrorType, is_error};
-use math::shift_int;
 use compiler::OpCode;
 use compiler::const_pool::ConstantPool;
+use math::shift_int;
 
 use num_traits::FromPrimitive;
 

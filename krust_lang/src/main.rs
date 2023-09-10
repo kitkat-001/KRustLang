@@ -4,7 +4,6 @@ mod parser;
 mod compiler;
 mod vm;
 
-mod math;
 mod log;
 
 use log::{Log, LogType, ErrorType};
@@ -72,7 +71,7 @@ fn run(file_path: String, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>)
 #[cfg(test)]
 mod tests
 {
-    use crate::math;
+    use crate::vm::math;
     use crate::log;
     use super::run;
 

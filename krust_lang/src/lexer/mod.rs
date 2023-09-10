@@ -1,5 +1,7 @@
 //! The module for lexing the source file, i.e. splitting it up into tokens.
 
+mod trie;
+
 use crate::log;
 use std::collections::HashMap;
 use std::fs::read_to_string;
