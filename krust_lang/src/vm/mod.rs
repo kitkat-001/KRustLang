@@ -90,7 +90,9 @@ fn match_op(
     match op
     {
         OpCode::PushInt => push_int(bytecode, stack, index, logs),
+        OpCode::PushByte => push_byte(bytecode, stack, index, logs),
         OpCode::PopInt => pop_int(stack, output, logs),
+        OpCode::PopBool => pop_bool(stack, output, logs),
         OpCode::MinusInt => minus_int(stack, logs),
         OpCode::AddInt => add_int(stack, logs),
         OpCode::SubtractInt => subtract_int(stack, logs),
@@ -101,8 +103,11 @@ fn match_op(
         OpCode::LeftShiftInt => left_shift_int(stack, logs),
         OpCode::RightShiftInt => right_shift_int(stack, logs),
         OpCode::AndInt => and_int(stack, logs),
+        OpCode::AndBool => and_bool(stack, logs),
         OpCode::XorInt => xor_int(stack, logs),
+        OpCode::XorBool => xor_bool(stack, logs),
         OpCode::OrInt => or_int(stack, logs),
+        OpCode::OrByte => or_byte(stack, logs)
     };
     is_error(logs)
 }
@@ -121,6 +126,17 @@ fn push_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &m
     }
 }
 
+// Pushes a byte onto the stack.
+fn push_byte(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>)
+{
+    if *index + 1 > bytecode.len()
+    {
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
+    }
+    stack.push(bytecode[*index]);
+    *index += 1;
+}
+
 // Pops an int from the stack and adds it to the output.
 fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>)
 {
@@ -128,6 +144,20 @@ fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>)
     if let Some(value) = value
     {
         output.push(format!("{}", value));
+    }
+    else
+    {
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
+    }
+}
+
+// Pops an bool from the stack and adds it to the output.
+fn pop_bool(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>)
+{
+    let value: Option<u8> = stack.pop();
+    if let Some(value) = value
+    {
+        output.push(format!("{}", value != 0));
     }
     else
     {
@@ -207,16 +237,34 @@ fn and_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
     binary_int(stack, logs, |a, b| a & b, None);
 }
 
+// Ands two booleans.
+fn and_bool(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+{
+    binary_byte(stack, logs, |a, b| (a != 0 && b != 0) as u8, None);
+}
+
 // Bitwise xors two ints.
 fn xor_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     binary_int(stack, logs, |a, b| a ^ b, None);
 }
 
+// Xors two booleans.
+fn xor_bool(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+{
+    binary_byte(stack, logs, |a, b| ((a != 0) != (b != 0)) as u8, None);
+}
+
 // Bitwise ors two ints.
 fn or_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
     binary_int(stack, logs, |a, b| a | b, None);
+}
+
+// Bitwise ors two bytes.
+fn or_byte(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+{
+    binary_byte(stack, logs, |a, b| a | b, None);
 }
 
 // Performs a unary operation on an int.
@@ -266,6 +314,46 @@ fn binary_int<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F, error: Optio
                 handle_error(&mut error, (a, b), detailed_err, logs)
             }
             let c: i32 = func(a, b);
+            stack.append(&mut c.to_le_bytes().to_vec());
+        }
+    }
+    if fail 
+    {
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
+    }
+}
+
+// Performs a binary operation on a pair of bytes.
+fn binary_byte<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F, error: Option<RuntimeError<(u8, u8)>>)
+    where F: Fn(u8, u8) -> u8
+{
+    let detailed_err: bool = if let Some(error) = &error
+    {
+        get_detailed_err(error.bytecode)
+    }
+    else
+    {
+        false
+    }; 
+    if detailed_err && errors_stored_incorrectly(error.as_ref().expect("detailed_err is true"))
+    {
+        logs.push(Log{log_type: LogType::Error(ErrorType::FatalError), line_and_col: None});
+        return;
+    }
+
+    let b: Option<u8> = stack.pop();
+    let a: Option<u8> = stack.pop();
+    let mut fail: bool = true;
+    if let Some(a) = a
+    {
+        if let Some(b) = b
+        {   
+            fail = false;
+            if let Some(mut error) = error
+            {
+                handle_error(&mut error, (a, b), detailed_err, logs)
+            }
+            let c: u8 = func(a, b);
             stack.append(&mut c.to_le_bytes().to_vec());
         }
     }

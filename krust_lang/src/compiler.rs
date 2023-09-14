@@ -3,7 +3,7 @@
 use crate::{log, lexer, parser};
 use log::{Log, LogType, ErrorType, is_error};
 use lexer::{TokenType, Token};
-use parser::{Expression, ParserOutput};
+use parser::{Expression, ParserOutput, Type};
 
 use num_derive::FromPrimitive;
 
@@ -12,7 +12,9 @@ use num_derive::FromPrimitive;
 pub enum OpCode
 {
     PushInt,
+    PushByte,
     PopInt,
+    PopBool,
 
     MinusInt,
 
@@ -28,8 +30,11 @@ pub enum OpCode
     RightShiftInt,
 
     AndInt,
+    AndBool,
     XorInt,
-    OrInt
+    XorBool,
+    OrInt,
+    OrByte
 }
 
 /// The output given by the compiler.
@@ -49,8 +54,12 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
     if !is_error(&logs)
     {
         let mut byte_list: Vec<u8> = cli_args.to_vec();
+        let expr_type: Type = parser_output.expr.get_type().expect("any \"None\" should have a parsing error");
         byte_list.append(&mut generate_bytecode(parser_output.expr, cli_args[0]));
-        byte_list.push(OpCode::PopInt as u8);
+        byte_list.push(match expr_type {
+            Type::Int => OpCode::PopInt,
+            Type::Bool => OpCode::PopBool,
+        } as u8);
         if u32::from(cli_args[0]) * 8 < usize::BITS && byte_list.len() >= 1 << (cli_args[0] * 8)
         {
             logs.push(Log{log_type: LogType::Error(ErrorType::ExcessiveBytecode), line_and_col: None});
@@ -69,9 +78,9 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
     let mut bytecode: Vec<u8> = Vec::new();
     match expr
     {
-        Expression::Binary { left, op, right , ..} =>
+        Expression::Binary { left, op, right, expr_type} =>
         {
-            handle_binary(&mut bytecode, ptr_size, left, op, right)
+            handle_binary(&mut bytecode, ptr_size, left, op, right, expr_type.expect("any \"None\" should have a parsing error"));
         }
         Expression::Grouping { expr: child, .. } =>
         {
@@ -99,7 +108,7 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
 }
 
 // Handles binary expressions.
-fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op: Token, right: Box<Expression>)
+fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op: Token, right: Box<Expression>, expr_type: Type)
 {
     bytecode.append(&mut generate_bytecode(*left, ptr_size));
     bytecode.append(&mut generate_bytecode(*right, ptr_size));
@@ -124,9 +133,27 @@ fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op
         TokenType::LeftShift => { bytecode.push(OpCode::LeftShiftInt as u8); },
         TokenType::RightShift => { bytecode.push(OpCode::RightShiftInt as u8); },
         
-        TokenType::Ampersand => { bytecode.push(OpCode::AndInt as u8); },
-        TokenType::Caret => { bytecode.push(OpCode::XorInt as u8); },
-        TokenType::Bar => { bytecode.push(OpCode::OrInt as u8); },
+        TokenType::Ampersand => { 
+            bytecode.push( match expr_type
+                {
+                    Type::Int => OpCode::AndInt,
+                    Type::Bool => OpCode::AndBool,
+                } as u8); 
+        },
+        TokenType::Caret => {
+            bytecode.push( match expr_type
+                {
+                    Type::Int => OpCode::XorInt,
+                    Type::Bool => OpCode::XorBool,
+                } as u8); 
+        },
+        TokenType::Bar => {
+            bytecode.push( match expr_type
+                {
+                    Type::Int => OpCode::OrInt,
+                    Type::Bool => OpCode::OrByte,
+                } as u8); 
+        },
         _ => { panic!("invalid token found at head of binary expression.")}
     }
 }
@@ -134,14 +161,23 @@ fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op
 // Handles literal expressions/tokens.
 fn handle_literal(bytecode: &mut Vec<u8>, token: Token)
 {
-    if let TokenType::IntLiteral(value) = token.token_type
-    {
-        bytecode.push(OpCode::PushInt as u8);
-        bytecode.append(&mut value.to_le_bytes().to_vec());
-    }
-    else 
-    {
-        panic!("all literals should have been accounted for");
+    match token.token_type {
+        TokenType::IntLiteral(value) =>
+        {
+            bytecode.push(OpCode::PushInt as u8);
+            bytecode.append(&mut value.to_le_bytes().to_vec());
+        }
+        TokenType::True =>
+        {
+            bytecode.push(OpCode::PushByte as u8);
+            bytecode.push(1 as u8);
+        }
+        TokenType::False =>
+        {
+            bytecode.push(OpCode::PushByte as u8);
+            bytecode.push(0 as u8);
+        }
+        _ => panic!("all literals should have been accounted for")
     }
 }
 
