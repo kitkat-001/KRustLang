@@ -80,17 +80,18 @@ mod tests
         let file_path: String = format!("tests/{test_name}.txt");
         fs::write(&file_path, code).expect("file will be created if it doesn't exist");
         let out_err = run(
-            file_path,
+            file_path.clone(),
             [(usize::BITS / 8).try_into().expect("length of usize shouldn't be over 1024 bits"), 1]);
+        let _ = fs::remove_file(&file_path);
         assert_eq!(out_err.0, out);
         assert_eq!(all_to_string(&out_err.1), err);
     }
 
     #[test]
-    fn above_max_value()
+    fn above_max_int()
     {
         test_code(
-            "above_max_value", 
+            "above_max_int", 
             format!("{}", 0x8000_0001u32).as_str(), 
             Vec::new(), 
             vec![
@@ -101,10 +102,10 @@ mod tests
     }
 
     #[test]
-    fn max_value_no_sign()
+    fn max_int_no_sign()
     {
         test_code(
-            "max_value_no_sign", 
+            "max_int_no_sign", 
             format!("{}", 0x8000_0000u32).as_str(), 
             Vec::new(), 
             vec![
@@ -115,10 +116,10 @@ mod tests
     }
 
     #[test]
-    fn max_pos_value()
+    fn max_pos_int()
     {
         test_code(
-            "max_value_pos", 
+            "max_int_pos", 
             format!("{}", 0x8000_0000u32 - 1).as_str(), 
             vec![format!("{}", 0x8000_0000u32 - 1)], 
             Vec::new()
@@ -126,10 +127,10 @@ mod tests
     }
 
     #[test]
-    fn below_min_value()
+    fn below_min_int()
     {
         test_code(
-            "below_min_value", 
+            "below_min_int", 
             format!("-{}", 0x8000_0001u32).as_str(), 
             Vec::new(), 
             vec![
@@ -140,10 +141,10 @@ mod tests
     }
 
     #[test]
-    fn min_value()
+    fn min_int()
     {
         test_code(
-            "min_value", 
+            "min_int", 
             format!("-{}", 0x8000_0000u32).as_str(), 
             vec![format!("-{}", 0x8000_0000u32)], 
             Vec::new()
@@ -196,10 +197,10 @@ mod tests
     
     proptest! {
         #[test]
-        fn random_value(value in proptest::num::i32::ANY)
+        fn random_int(value in proptest::num::i32::ANY)
         {
             test_code(
-                "random_value", 
+                "random_int", 
                 format!("{value}").as_str(), 
                 vec![format!("{value}")], 
                 Vec::new()
@@ -207,10 +208,10 @@ mod tests
         }
 
         #[test]
-        fn add_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        fn add_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "add_values", 
+                "add_ints", 
                 format!("{a}+{b}").as_str(), 
                 vec![format!("{}", i32::wrapping_add(a, b))], 
                 Vec::new()
@@ -218,10 +219,10 @@ mod tests
         }
 
         #[test]
-        fn sub_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        fn sub_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "sub_values", 
+                "sub_ints", 
                 format!("{a}-{b}").as_str(), 
                 vec![format!("{}", i32::wrapping_sub(a, b))], 
                 Vec::new()
@@ -229,10 +230,10 @@ mod tests
         }
 
         #[test]
-        fn mul_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        fn mul_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "mul_values", 
+                "mul_ints", 
                 format!("{a}*{b}").as_str(), 
                 vec![format!("{}", i32::wrapping_mul(a, b))], 
                 Vec::new()
@@ -240,7 +241,7 @@ mod tests
         }
 
         #[test]
-        fn div_values(
+        fn div_ints(
             a in proptest::num::i32::ANY, 
             b in proptest::num::i32::ANY.prop_filter
             (
@@ -250,7 +251,7 @@ mod tests
         )
         {
             test_code(
-                "div_values", 
+                "div_ints", 
                 format!("{a}/{b}").as_str(), 
                 vec![format!("{}", i32::wrapping_div(a, b))], 
                 Vec::new()
@@ -269,7 +270,7 @@ mod tests
         }
 
         #[test]
-        fn mod_values(
+        fn mod_ints(
             a in proptest::num::i32::ANY, 
             b in proptest::num::i32::ANY.prop_filter
             (
@@ -279,7 +280,7 @@ mod tests
         )
         {
             test_code(
-                "mod_values", 
+                "mod_ints", 
                 format!("{a}%{b}").as_str(), 
                 vec![format!("{}", i32::wrapping_rem_euclid(a, b))], 
                 Vec::new()
@@ -298,10 +299,10 @@ mod tests
         }
 
         #[test]
-        fn complement_value(a in proptest::num::i32::ANY)
+        fn complement_int(a in proptest::num::i32::ANY)
         {
             test_code(
-                "complement_value", 
+                "complement_int", 
                 format!("~{a}").as_str(), 
                 vec![format!("{}", !a)], 
                 Vec::new()
@@ -309,10 +310,10 @@ mod tests
         }
 
         #[test]
-        fn left_shift_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        fn left_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "left_shift_values", 
+                "left_shift_ints", 
                 format!("{a}<<{b}").as_str(), 
                 vec![format!("{}", math::shift_int(a, b))], 
                 Vec::new()
@@ -320,10 +321,10 @@ mod tests
         }
 
         #[test]
-        fn right_shift_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        fn right_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "right_shift_values", 
+                "right_shift_ints", 
                 format!("{a}>>{b}").as_str(), 
                 vec![format!("{}", math::shift_int(a, i32::wrapping_neg(b)))], 
                 Vec::new()
@@ -331,10 +332,10 @@ mod tests
         }
 
         #[test]
-        fn and_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        fn and_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "and_values", 
+                "and_int", 
                 format!("{a} & {b}").as_str(), 
                 vec![format!("{}", a & b)], 
                 Vec::new()
@@ -342,10 +343,21 @@ mod tests
         }
 
         #[test]
-        fn xor_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        fn and_bool(a in proptest::bool::ANY, b in proptest::bool::ANY)
         {
             test_code(
-                "xor_values", 
+                "and_bool", 
+                format!("{a} & {b}").as_str(), 
+                vec![format!("{}", a & b)], 
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn xor_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "xor_int", 
                 format!("{a} ^ {b}").as_str(), 
                 vec![format!("{}", a ^ b)], 
                 Vec::new()
@@ -353,10 +365,32 @@ mod tests
         }
 
         #[test]
-        fn or_values(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        fn xor_bool(a in proptest::bool::ANY, b in proptest::bool::ANY)
         {
             test_code(
-                "or_values", 
+                "xor_bool",  
+                format!("{a} ^ {b}").as_str(), 
+                vec![format!("{}", a ^ b)], 
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn or_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "or_int", 
+                format!("{a} | {b}").as_str(), 
+                vec![format!("{}", a | b)], 
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn or_bool(a in proptest::bool::ANY, b in proptest::bool::ANY)
+        {
+            test_code(
+                "or_bool",  
                 format!("{a} | {b}").as_str(), 
                 vec![format!("{}", a | b)], 
                 Vec::new()
@@ -419,6 +453,22 @@ mod tests
                 "mixed_order_of_ops", 
                 format!("{a} & {b} + {c}").as_str(),
                 vec![format!("{}", a  & i32::wrapping_add(b, c))],
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn bool_order_of_ops(
+            a in proptest::bool::ANY,
+            b in proptest::bool::ANY,
+            c in proptest::bool::ANY,
+            d in proptest::bool::ANY
+        )
+        {
+            test_code(
+                "bool_order_of_ops", 
+                format!("{a} | {b} ^ {c} & {d}").as_str(),
+                vec![format!("{}", a | (b ^ (c & d)))],
                 Vec::new()
             );
         }

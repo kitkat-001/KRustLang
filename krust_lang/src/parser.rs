@@ -141,6 +141,7 @@ impl OpList
         valid_types
     }
 
+    // Gets the output type of an operator given by the tokens and the given inputs.
     fn get_output_type(&self, token: &Token, input: Vec<Option<Type>>, log_info: (&mut Vec<Log>, &String)) -> Option<Type>
     {
         if input.contains(&None) { return None; }
@@ -271,6 +272,7 @@ fn handle_paren(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize, sou
     Expression::Grouping { expr, expr_type }
 }
 
+// Gets an expression based on the operator precedence.
 fn get_operators(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize, precendence: usize, source: &String) -> Option<Expression>
 {    
     let operator_list: [OpList; 7] = OpList::get_op_lists();

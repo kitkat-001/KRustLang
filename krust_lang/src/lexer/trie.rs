@@ -18,7 +18,7 @@ pub struct Node<TKey, TValue>
 
 impl<TKey: PartialEq + Clone, TValue: Clone> Node<TKey, TValue>
 {
-    /// Searches for a value the corresponding key if found.
+    /// Returns the value corresponding with the key if found.
     pub fn search(&self, key: &Vec<TKey>) -> Option<TValue>
     {
         if key.len() == 0
@@ -78,11 +78,13 @@ impl<TKey: PartialEq + Clone, TValue: Clone> Node<TKey, TValue>
 
 impl<TValue: Clone> Node<char, TValue>
 {
+    /// Returns the value corresponding with the key if found. Uses a String as the key.
     pub fn search_with_string(&self, key: &String) -> Option<TValue>
     {
         self.search(&string_to_vec(key))
     }
 
+    /// Creates a trie based on multiple lists of values and keys. Uses Strings as the keys.
     pub fn new_with_string(values: Vec<(String, TValue)>) -> Node<char, TValue>
     {
         let mut new_vec: Vec<(Vec<char>, TValue)> = Vec::new();
@@ -94,6 +96,7 @@ impl<TValue: Clone> Node<char, TValue>
     }
 }
 
+// Converts a string to a list of characters..
 fn string_to_vec(value: &String) -> Vec<char>
 {
     let mut out: Vec<char> = Vec::new();
