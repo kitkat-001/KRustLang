@@ -1,16 +1,37 @@
 //! The module for parsing the tokens and creating the AST.
 use crate::{log, lexer};
+use std::fmt::{Display, Formatter, Result};
 use log::{Log, LogType, ErrorType};
 use lexer::{Token, LexerOutput, TokenType};
+
+/// The types in this language.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Type
+{
+    Int,
+    Bool
+}
+
+impl Display for Type
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result
+    {
+        match self
+        {
+            Type::Int => write!(f, "\"int\""),
+            Type::Bool => write!(f, "\"bool\"")
+        }
+    }
+}
 
 /// An enum represetning the possible types of expressions.
 #[derive(Clone)]
 pub enum Expression
 {
-    Binary{left:  Box<Expression>, op: Token, right: Box<Expression>},
-    Grouping{expr: Box<Expression>},
-    Literal{token: Token},
-    Unary{op: Token, expr: Box<Expression>},
+    Binary{left:  Box<Expression>, op: Token, right: Box<Expression>, expr_type: Option<Type>},
+    Grouping{expr: Box<Expression>, expr_type: Option<Type>},
+    Literal{token: Token, expr_type: Option<Type>},
+    Unary{op: Token, expr: Box<Expression>, expr_type: Option<Type>},
 
     EOF,
     Null,
@@ -26,25 +47,8 @@ pub struct ParserOutput
 
 impl Expression
 {
-    #[allow(dead_code)]
-    /// Convert the expression into a string.
-    pub fn to_string(&self, source: &str) -> String
-    {
-        match &self
-        {
-            Expression::Binary { left, op, right } 
-                => format!("{}({}, {})", op.to_string(source), (*left).to_string(source), (*right).to_string(source)),
-            Expression::Grouping { expr }
-                => format!("({})", (*expr).to_string(source)),
-            Expression::Literal { token } => token.to_string(source).to_string(),
-            Expression::Unary { op, expr } 
-                => format!("{}({})", op.to_string(source), (*expr).to_string(source)),
-                
-            Expression::EOF => "EOF".to_string(),
-            Expression::Null => "null".to_string(),
-        }
-    }
 
+    // Returns whether or not this expression represents the end of the file.
     fn is_eof(&self) -> bool
     {
         if let Expression::EOF = *self
@@ -56,14 +60,131 @@ impl Expression
             false
         }
     }
+
+    // Returns the type of the expression
+    pub fn get_type(&self) -> Option<Type>
+    {
+        match &self
+        {
+            Expression::Binary { expr_type, .. } => *expr_type,
+            Expression::Grouping { expr_type, .. } => *expr_type,
+            Expression::Literal { expr_type, .. } => *expr_type,
+            Expression::Unary { expr_type, .. } => *expr_type,
+
+            _ => None,
+        }
+    }
 }
 
-// Contains info about operators with the same precendence.
-struct PrecendenceClass
+// Contains info about operators and the types they operate over
+#[derive(Clone)]
+struct Operator
 {
-    operators: Vec<TokenType>,
-    arg_count: usize
+    token: TokenType,
+    input: Vec<Type>,
+    output: Type
 }
+
+// Allows list of operators to have methods associated with them.
+#[derive(Clone)]
+struct OpList{list: Vec<Operator>}
+impl OpList
+{
+    // Gets the default list of operators used by the language.
+    fn get_op_lists() -> [Self; 7]
+    {
+        [
+            OpList{list: vec![Operator{token: TokenType::Bar, input: vec![Type::Int, Type::Int], output: Type::Int},
+                Operator{token: TokenType::Bar, input: vec![Type::Bool, Type::Bool], output: Type::Bool}]},
+            OpList{list: vec![Operator{token: TokenType::Caret, input: vec![Type::Int, Type::Int], output: Type::Int},
+                Operator{token: TokenType::Caret, input: vec![Type::Bool, Type::Bool], output: Type::Bool}]},
+            OpList{list: vec![Operator{token: TokenType::Ampersand, input: vec![Type::Int, Type::Int], output: Type::Int},
+                Operator{token: TokenType::Ampersand, input: vec![Type::Bool, Type::Bool], output: Type::Bool}]},
+            OpList{list: vec![Operator{token: TokenType::LeftShift, input: vec![Type::Int, Type::Int], output: Type::Int}, 
+                Operator{token: TokenType::RightShift, input: vec![Type::Int, Type::Int], output: Type::Int}]},
+            OpList{list: vec![Operator{token: TokenType::Plus, input: vec![Type::Int, Type::Int], output: Type::Int}, 
+                Operator{token: TokenType::Minus, input: vec![Type::Int, Type::Int], output: Type::Int}]},
+            OpList{list: vec![Operator{token: TokenType::Star, input: vec![Type::Int, Type::Int], output: Type::Int}, 
+                Operator{token: TokenType::Slash, input: vec![Type::Int, Type::Int], output: Type::Int},
+                Operator{token: TokenType::Percent, input: vec![Type::Int, Type::Int], output: Type::Int}]},
+            OpList{list: vec![Operator{token: TokenType::Minus, input: vec![Type::Int], output: Type::Int}, 
+                Operator{token: TokenType::Tilde, input: vec![Type::Int], output: Type::Int}]},
+        ]
+    }
+
+    // The number of arguments
+    fn arg_count(&self) -> Option<usize>
+    {
+        if self.list.len() > 0 { Some(self.list[0].input.len()) } else { None }
+    }
+
+    // Returns whether or not one of the operators is associated a specific token. 
+    fn contains(&self, token: &TokenType) -> bool
+    {
+        let list: Vec<Operator> = self.list.clone();
+        for op in list
+        {
+            if op.token == *token {return true;}
+        }
+        false
+    }
+
+    // Returns a list of valid input and output types for this 
+    fn valid_arg_types(&self, token: &TokenType) -> Vec<(Vec<Type>, Type)>
+    {
+        let list: Vec<Operator> = self.list.clone();
+        let mut valid_types: Vec<(Vec<Type>, Type)> = Vec::new();
+        for op in list
+        {
+            if op.token == *token { valid_types.push((op.input, op.output)); }
+        }
+        valid_types
+    }
+
+    fn get_output_type(&self, token: &Token, input: Vec<Option<Type>>, log_info: (&mut Vec<Log>, &String)) -> Option<Type>
+    {
+        if input.contains(&None) { return None; }
+
+        let input: Vec<Type> = { 
+            let mut temp: Vec<Type> = Vec::new();
+            for value in input
+            {
+                temp.push(value.expect("checked by if statement"));
+            }
+            temp
+        };
+
+        let valid_types: Vec<(Vec<Type>, Type)> = self.valid_arg_types(&token.token_type);
+        let mut valid_inputs: Vec<Vec<Type>> = Vec::new();
+        for value in valid_types.clone() {valid_inputs.push(value.clone().0);}
+        for i in 0..valid_inputs.len()
+        {
+            if valid_inputs[i] == input
+            {
+                return Some(valid_types.clone()[i].1);
+            }
+        }
+        
+        let logs: &mut Vec<Log> = log_info.0;
+        let source: &String = log_info.1;
+        logs.push(Log{
+            log_type: LogType::Error(ErrorType::InvalidArgsForOperator(
+                token.to_string(&source),
+                {
+                    let mut vec_string: Vec<String> = Vec::new();
+                    for value in input
+                    {
+                        vec_string.push(value.to_string());
+                    }
+                    vec_string
+                }
+            )),
+            line_and_col: Some((token.line, token.col))
+        });
+        None
+    }
+}
+
 
 /// Parse the output from the lexer.
 pub fn parse(lex_output: LexerOutput) -> ParserOutput
@@ -71,7 +192,7 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput
     let mut logs: Vec<Log> = lex_output.logs.clone();
     let mut index: usize = 0;
     let tokens: Vec<Token> = lex_output.tokens;
-    let expr: Expression = get_expression(&tokens.clone(), &mut logs, &mut index);
+    let expr: Expression = get_expression(&tokens.clone(), &mut logs, &mut index, &lex_output.file_text);
     if index < tokens.len() && tokens[index].token_type != TokenType::EOF
     {
         logs.push(Log{log_type: LogType::Error(ErrorType::ExpectedEOF), 
@@ -83,23 +204,25 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput
 
 
 // Get the expression from the token list.
-fn get_expression(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
+fn get_expression(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize, source: &String) -> Expression
 {
-    get_operators(tokens, logs, index, 0)
+    get_operators(tokens, logs, index, 0, source).unwrap_or(Expression::Null)
 }
 
 // Get a primary expression (literals and grouping expressions).
-fn get_primary(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
+fn get_primary(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize, source: &String) -> Expression
 {
     let token: Token = tokens[*index];
     *index += 1;
     match token.token_type
     {
-        TokenType::IntLiteral(_) => Expression::Literal { token },
-        TokenType::Error => Expression::Literal { token },
+        TokenType::IntLiteral(_) => Expression::Literal { token, expr_type: Some(Type::Int) },
+        TokenType::True => Expression::Literal { token, expr_type: Some(Type::Bool) },
+        TokenType::False => Expression::Literal { token, expr_type: Some(Type::Bool) },
+        TokenType::Error => Expression::Literal { token, expr_type: None },
         TokenType::LeftParen => 
         {
-            handle_paren(tokens, logs, index)
+            handle_paren(tokens, logs, index, source)
         },
         TokenType::EOF =>
         {
@@ -111,22 +234,22 @@ fn get_primary(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> E
         {
             logs.push(Log{log_type: LogType::Error(ErrorType::UnexpectedToken), 
                 line_and_col: Some((token.line, token.col))});
-            get_expression(tokens, logs, index)
+            get_expression(tokens, logs, index, source)
         }
     }
 }
 
 // Handles primary expressions that use parentheses.
-fn handle_paren(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> Expression
+fn handle_paren(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize, source: &String) -> Expression
 {
     if tokens[*index].token_type == TokenType::RightParen
     {
         logs.push(Log{log_type: LogType::Error(ErrorType::ExpectedExpressionInParens), 
             line_and_col: Some((tokens[*index].line, tokens[*index].col))});
         *index += 1;
-        return Expression::Grouping { expr: Box::new(Expression::Null) };
+        return Expression::Grouping { expr: Box::new(Expression::Null) , expr_type: None};
     }
-    let expr: Expression = get_expression(tokens, logs, index);
+    let expr: Expression = get_expression(tokens, logs, index, source);
     if let Expression::EOF = expr
     {
         logs.push(Log{log_type: LogType::Error(ErrorType::ExpectedCloseParen), 
@@ -144,55 +267,55 @@ fn handle_paren(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize) -> 
         logs.push(Log{log_type: LogType::Error(ErrorType::ExpectedCloseParen), 
             line_and_col: Some((tokens[*index].line, tokens[*index].col))});
     }
-    Expression::Grouping { expr }
+    let expr_type: Option<Type> = expr.get_type();
+    Expression::Grouping { expr, expr_type }
 }
 
-fn get_operators(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize, precendence: usize) -> Expression
-{
-    let operator_list: [PrecendenceClass; 7] = 
-    [
-        PrecendenceClass{operators: vec![TokenType::Bar], arg_count: 2},
-        PrecendenceClass{operators: vec![TokenType::Caret], arg_count: 2},
-        PrecendenceClass{operators: vec![TokenType::Ampersand], arg_count: 2},
-        PrecendenceClass{operators: vec![TokenType::LeftShift, TokenType::RightShift], arg_count: 2},
-        PrecendenceClass{operators: vec![TokenType::Plus, TokenType::Minus], arg_count: 2},
-        PrecendenceClass{operators: vec![TokenType::Star, TokenType::Slash, TokenType::Percent], arg_count: 2},
-        PrecendenceClass{operators: vec![TokenType::Minus, TokenType::Tilde], arg_count: 1}
-    ];
-
-    if precendence >= operator_list.len() { get_primary(tokens, logs, index) }
+fn get_operators(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize, precendence: usize, source: &String) -> Option<Expression>
+{    
+    let operator_list: [OpList; 7] = OpList::get_op_lists();
+    if precendence >= operator_list.len() { Some(get_primary(tokens, logs, index, source)) }
     else 
     {
-        if operator_list[precendence].arg_count == 1
+        if operator_list[precendence].arg_count()? == 1
         {
-            if operator_list[precendence].operators.contains(&tokens[*index].token_type)
+            if operator_list[precendence].contains(&tokens[*index].token_type)
             {
                 let op: Token = tokens[*index];
                 *index += 1;
-                let expr: Expression = get_operators(tokens, logs, index, precendence);
-                Expression::Unary { op, expr: Box::new(expr) }
+                let expr: Expression = get_operators(tokens, logs, index, precendence, source)?;
+                let expr_type: Option<Type> = operator_list[precendence].get_output_type(
+                    &op, vec![expr.get_type()], (logs, source)
+                );
+                Some(Expression::Unary { op, expr: Box::new(expr), 
+                    expr_type: expr_type })
             }
             else 
             {
-                get_operators(tokens, logs, index, precendence + 1)    
+                get_operators(tokens, logs, index, precendence + 1, source)
             }
         }
-        else if operator_list[precendence].arg_count == 2
+        else if operator_list[precendence].arg_count()? == 2
         {
-            let mut expr: Expression = get_operators(tokens, logs, index, precendence + 1);
-            while !expr.is_eof() && operator_list[precendence].operators.contains(&tokens[*index].token_type)
+            let mut expr: Expression = get_operators(tokens, logs, index, precendence + 1, source)?;
+            while !expr.is_eof() && operator_list[precendence].contains(&tokens[*index].token_type)
             {
                 let op: Token = tokens[*index];
                 *index += 1;
-                let right: Expression = get_operators(tokens, logs, index, precendence + 1);
+                let right: Expression = get_operators(tokens, logs, index, precendence + 1, source)?;
+                let type_list: Vec<Option<Type>> = vec![expr.get_type(), right.get_type()];
                 let is_eof: bool = right.is_eof();
-                expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right)};
+                expr = Expression::Binary{left: Box::new(expr), op, right: Box::new(right),
+                    expr_type: operator_list[precendence].get_output_type(
+                        &op, type_list, (logs, source)
+                    )
+                };
                 if is_eof
                 {
-                    return expr;
+                    return Some(expr);
                 }
             }
-            expr
+            Some(expr)
         }
         else
         {
@@ -206,16 +329,16 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
 {
     match *expr
     {
-        Expression::Binary { ref left, op: _, ref right } =>
+        Expression::Binary { ref left, ref right, .. } =>
         {
             improve_ast(left.clone(), Some(expr.clone()), logs);
             improve_ast(right.clone(), Some(expr.clone()), logs);
         },
-        Expression::Grouping { expr: ref child } =>
+        Expression::Grouping { expr: ref child, .. } =>
         {
             improve_ast(child.clone(), Some(expr.clone()), logs);
         },
-        Expression::Literal { token } => 
+        Expression::Literal { token , ..} => 
         {
             if let TokenType::IntLiteral(0x8000_0000u32) = token.token_type
             {
@@ -234,7 +357,7 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
                 }
             }
         },
-        Expression::Unary { op: _, expr: ref child } =>
+        Expression::Unary { expr: ref child, .. } =>
         {
             improve_ast(child.clone(), Some(expr.clone()), logs);
         },

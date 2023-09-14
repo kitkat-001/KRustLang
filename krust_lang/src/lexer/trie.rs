@@ -75,3 +75,31 @@ impl<TKey: PartialEq + Clone, TValue: Clone> Node<TKey, TValue>
         value_to_return
     }
 }
+
+impl<TValue: Clone> Node<char, TValue>
+{
+    pub fn search_with_string(&self, key: &String) -> Option<TValue>
+    {
+        self.search(&string_to_vec(key))
+    }
+
+    pub fn new_with_string(values: Vec<(String, TValue)>) -> Node<char, TValue>
+    {
+        let mut new_vec: Vec<(Vec<char>, TValue)> = Vec::new();
+        for pair in values
+        {
+            new_vec.push((string_to_vec(&pair.0), pair.1));
+        }
+        Node::new(new_vec)
+    }
+}
+
+fn string_to_vec(value: &String) -> Vec<char>
+{
+    let mut out: Vec<char> = Vec::new();
+    for c in value.chars().by_ref()
+    {
+        out.push(c);
+    }
+    out
+}

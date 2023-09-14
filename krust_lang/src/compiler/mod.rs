@@ -87,19 +87,19 @@ fn generate_bytecode(expr: Expression, const_pool: &mut ConstantPool) -> Result<
     let mut bytecode: Vec<u8> = Vec::new();
     match expr
     {
-        Expression::Binary { left, op, right } =>
+        Expression::Binary { left, op, right , ..} =>
         {
             handle_binary(&mut bytecode, const_pool, left, op, right)?
         }
-        Expression::Grouping { expr: child } =>
+        Expression::Grouping { expr: child, .. } =>
         {
             bytecode.append(&mut generate_bytecode(*child, const_pool)?);
         }
-        Expression::Literal { token } =>
+        Expression::Literal { token , ..} =>
         {
             handle_literal(&mut bytecode, token, const_pool)?;
         }
-        Expression::Unary { op, expr: child } =>
+        Expression::Unary { op, expr: child, .. } =>
         {
             bytecode.append(&mut generate_bytecode(*child, const_pool)?);
             if op.token_type == TokenType::Minus

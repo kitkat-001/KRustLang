@@ -9,6 +9,8 @@ use std::io::Error;
 use std::num::ParseIntError;
 use log::{Log, LogType, ErrorType};
 
+use trie::Node;
+
 /// A token representing an indivisible piece of the source code.
 #[derive(Clone, Copy)]
 pub struct Token
@@ -37,6 +39,9 @@ pub enum TokenType
 
     // Literals
     IntLiteral(u32),
+
+    // Keywords
+    True, False,
 
     EOF, // End of file.
 
@@ -81,6 +86,11 @@ pub fn lex(file_path: &str) -> LexerOutput
     let mut line: usize = 1;
     let mut col: usize = 1;
 
+    // Create the trie for the lexer so it only has to be made once.
+    let trie: Node<char, TokenType> = Node::new_with_string(vec![
+        ("true".to_string(), TokenType::True), ("false".to_string(), TokenType::False)
+    ]);
+
     // Loop through each token until the end of the file is found.
     loop
     {
@@ -90,7 +100,8 @@ pub fn lex(file_path: &str) -> LexerOutput
             &mut logs,
             &mut index,
             &mut line,
-            &mut col
+            &mut col,
+            &trie
         );
         if output.is_some() { return output.expect("checked by if statement"); }
     }
@@ -103,7 +114,8 @@ fn get_token(
     logs: &mut Vec<Log>,
     index: &mut usize,
     line: &mut usize,
-    col: &mut usize
+    col: &mut usize,
+    trie: &Node<char, TokenType>
 ) -> Option<LexerOutput>
 {
     let c: Option<char> = file_text.chars().nth(*index);
@@ -151,7 +163,7 @@ fn get_token(
     }
     else
     {
-        handle_error(file_text, tokens, logs, line, col, index)
+        handle_other(file_text, tokens, logs, line, col, index, trie);
     }
 
     None
@@ -283,13 +295,14 @@ fn is_digit_option(c_option: &Option<char>) -> bool
 }
 
 // Handles unexpected characters/tokens.
-fn handle_error(
+fn handle_other(
     file_text: &String, 
     tokens: &mut Vec<Token>,
     logs: &mut Vec<Log>,
     line: &mut usize,
     col: &mut usize, 
-    index: &mut usize
+    index: &mut usize,
+    trie: &Node<char, TokenType>
 )
 {
     let mut length: usize = 1;
@@ -297,9 +310,15 @@ fn handle_error(
     {
         length += 1;
     }
-    let token: Token = Token{token_type: TokenType::Error, line: *line, col: *col, start: *index, length};
-    logs.push(Log{log_type: LogType::Error(ErrorType::UnrecognizedToken(token.to_string(&file_text))), 
-        line_and_col: Some((*line, *col,))});
+    let token_string: String = file_text[*index..*index+length].to_string();
+    let token_type: Option<TokenType> = trie.search_with_string(&token_string);
+    let token_type: TokenType = if let Some(t) = token_type {t} else {TokenType::Error};
+    let token: Token = Token{token_type, line: *line, col: *col, start: *index, length};
+    if let TokenType::Error = token_type
+    {
+        logs.push(Log{log_type: LogType::Error(ErrorType::UnrecognizedToken(token.to_string(&file_text))), 
+            line_and_col: Some((*line, *col,))});
+    }
     tokens.push(token);
     *index += length;
     *col += length;

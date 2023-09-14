@@ -40,6 +40,7 @@ pub enum ErrorType
 
     UnrecognizedToken(String),
     UnrepresentableIntegerLiteral(String),
+    InvalidArgsForOperator(String, Vec<String>),
     
     ExpectedEOF,
     UnexpectedEOF,
@@ -121,6 +122,8 @@ impl Display for Log
                     => format!("unrecognized token \"{token}\"."),
                 ErrorType::UnrepresentableIntegerLiteral(token) 
                     => format!("int literal \"{token}\" must be at most {}.", 0x_8000_0000u32),
+                ErrorType::InvalidArgsForOperator(op, types)
+                    => format!("the operator \"{op}\" has no definition over the types {}", format_vec_string(types).unwrap_or("".to_string())),
 
                 ErrorType::ExpectedEOF => "expected end of file.".to_string(),
                 ErrorType::UnexpectedEOF => "unexpected end of file.".to_string(),
@@ -186,4 +189,31 @@ pub fn all_to_string(logs: &Vec<Log>) -> Vec<String>
         strings.push(ColoredString::from(format!("{log}").as_str()).clear().to_string());
     }
     strings
+}
+
+// Formats a vector of strings into a list with commas and "and".
+fn format_vec_string(vec: Vec<String>) -> Option<String>
+{
+    match vec.len()
+    {
+        0 => None,
+        1 => Some(vec[0].clone()),
+        2 => Some({
+            let mut value: String = vec[0].clone();
+            value.push_str(" and ");
+            value.push_str(&vec[1]);
+            value
+        }),
+        _ => Some({
+            let mut value: String = vec[0].clone();
+            for i in 1..vec.len()-1
+            {
+                value.push_str(", ");
+                value.push_str(&vec[i]);
+            }
+            value.push_str(", and ");
+            value.push_str(&vec[vec.len()-1]);
+            value
+        })
+    }
 }
