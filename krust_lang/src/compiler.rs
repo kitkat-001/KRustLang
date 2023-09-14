@@ -1,12 +1,9 @@
 //! The module for compiling source code into byte code.
 
-pub mod const_pool;
-
 use crate::{log, lexer, parser};
 use log::{Log, LogType, ErrorType, is_error};
 use lexer::{TokenType, Token};
 use parser::{Expression, ParserOutput};
-use const_pool::ConstantPool;
 
 use num_derive::FromPrimitive;
 
@@ -14,9 +11,7 @@ use num_derive::FromPrimitive;
 #[derive(FromPrimitive)]
 pub enum OpCode
 {
-    Const,
-
-    Push,
+    PushInt,
     PopInt,
 
     MinusInt,
@@ -54,27 +49,14 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
     if !is_error(&logs)
     {
         let mut byte_list: Vec<u8> = cli_args.to_vec();
-        let mut const_pool: ConstantPool = ConstantPool { pool: Vec::new(), ptr_size: cli_args[0] };
-        let result: Result<Vec<u8>, ()> = generate_bytecode(parser_output.expr, &mut const_pool);
-        if let Err(_) = result
-        {
-            logs.push(Log{log_type: LogType::Error(ErrorType::ExcessiveBytecode), line_and_col: None})
-        }
-        else if u32::from(cli_args[0]) * 8 < usize::BITS && byte_list.len() >= 1 << (cli_args[0] * 8)
+        byte_list.append(&mut generate_bytecode(parser_output.expr, cli_args[0]));
+        byte_list.push(OpCode::PopInt as u8);
+        if u32::from(cli_args[0]) * 8 < usize::BITS && byte_list.len() >= 1 << (cli_args[0] * 8)
         {
             logs.push(Log{log_type: LogType::Error(ErrorType::ExcessiveBytecode), line_and_col: None});
         }
         else
         {
-            if const_pool.pool.len() != 0
-            {
-                byte_list.push(OpCode::Const as u8);
-                byte_list.append(&mut usize_to_ptr_size(const_pool.pool.len(), const_pool.ptr_size));
-                byte_list.append(&mut const_pool.pool);
-            }
-            let mut bytecode_core: Vec<u8> = result.ok().expect("if statement checked err");
-            byte_list.append(&mut bytecode_core);
-            byte_list.push(OpCode::PopInt as u8);
             bytecode = Some(byte_list);
         }
     }
@@ -82,26 +64,26 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
     CompilerOutput { file_text: parser_output.file_text, bytecode, logs }
 }
 
-fn generate_bytecode(expr: Expression, const_pool: &mut ConstantPool) -> Result<Vec<u8>, ()>
+fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8>
 {
     let mut bytecode: Vec<u8> = Vec::new();
     match expr
     {
         Expression::Binary { left, op, right , ..} =>
         {
-            handle_binary(&mut bytecode, const_pool, left, op, right)?
+            handle_binary(&mut bytecode, ptr_size, left, op, right)
         }
         Expression::Grouping { expr: child, .. } =>
         {
-            bytecode.append(&mut generate_bytecode(*child, const_pool)?);
+            bytecode.append(&mut generate_bytecode(*child, ptr_size));
         }
         Expression::Literal { token , ..} =>
         {
-            handle_literal(&mut bytecode, token, const_pool)?;
+            handle_literal(&mut bytecode, token);
         }
         Expression::Unary { op, expr: child, .. } =>
         {
-            bytecode.append(&mut generate_bytecode(*child, const_pool)?);
+            bytecode.append(&mut generate_bytecode(*child, ptr_size));
             if op.token_type == TokenType::Minus
             {
                 bytecode.push(OpCode::MinusInt as u8);
@@ -113,15 +95,14 @@ fn generate_bytecode(expr: Expression, const_pool: &mut ConstantPool) -> Result<
         }
         _ => panic!("all expression types should have been accounted for"),
     }
-    Ok(bytecode)
+    bytecode
 }
 
 // Handles binary expressions.
-fn handle_binary(bytecode: &mut Vec<u8>, const_pool: &mut ConstantPool, left: Box<Expression>, op: Token, right: Box<Expression>) -> Result<(), ()>
+fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op: Token, right: Box<Expression>)
 {
-    bytecode.append(&mut generate_bytecode(*left, const_pool)?);
-    bytecode.append(&mut generate_bytecode(*right, const_pool)?);
-    let ptr_size: u8 = const_pool.ptr_size;
+    bytecode.append(&mut generate_bytecode(*left, ptr_size));
+    bytecode.append(&mut generate_bytecode(*right, ptr_size));
     match op.token_type
     {
         TokenType::Plus => { bytecode.push(OpCode::AddInt as u8); },
@@ -148,17 +129,15 @@ fn handle_binary(bytecode: &mut Vec<u8>, const_pool: &mut ConstantPool, left: Bo
         TokenType::Bar => { bytecode.push(OpCode::OrInt as u8); },
         _ => { panic!("invalid token found at head of binary expression.")}
     }
-    Ok(())
 }
 
 // Handles literal expressions/tokens.
-fn handle_literal(bytecode: &mut Vec<u8>, token: Token, const_pool: &mut ConstantPool) -> Result<(), ()>
+fn handle_literal(bytecode: &mut Vec<u8>, token: Token)
 {
     if let TokenType::IntLiteral(value) = token.token_type
     {
-        bytecode.push(OpCode::Push as u8);
-        bytecode.append(&mut const_pool.insert_int(value as i32)?.to_le_bytes()[0..const_pool.ptr_size as usize].to_vec());
-        Ok(())
+        bytecode.push(OpCode::PushInt as u8);
+        bytecode.append(&mut value.to_le_bytes().to_vec());
     }
     else 
     {
