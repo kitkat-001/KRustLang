@@ -103,9 +103,9 @@ fn match_op(
         OpCode::LeftShiftInt => left_shift_int(stack, logs),
         OpCode::RightShiftInt => right_shift_int(stack, logs),
         OpCode::AndInt => and_int(stack, logs),
-        OpCode::AndBool => and_bool(stack, logs),
+        OpCode::AndByte => and_byte(stack, logs),
         OpCode::XorInt => xor_int(stack, logs),
-        OpCode::XorBool => xor_bool(stack, logs),
+        OpCode::XorByte => xor_byte(stack, logs),
         OpCode::OrInt => or_int(stack, logs),
         OpCode::OrByte => or_byte(stack, logs)
     };
@@ -237,10 +237,10 @@ fn and_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
     binary_int(stack, logs, |a, b| a & b, None);
 }
 
-// Ands two booleans.
-fn and_bool(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+// Bitwise ands two bytes.
+fn and_byte(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    binary_byte(stack, logs, |a, b| (a != 0 && b != 0) as u8, None);
+    binary_byte(stack, logs, |a, b| a & b, None);
 }
 
 // Bitwise xors two ints.
@@ -249,10 +249,10 @@ fn xor_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
     binary_int(stack, logs, |a, b| a ^ b, None);
 }
 
-// Xors two booleans.
-fn xor_bool(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+// Bitwise ors two bytes.
+fn xor_byte(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    binary_byte(stack, logs, |a, b| ((a != 0) != (b != 0)) as u8, None);
+    binary_byte(stack, logs, |a, b| a ^ b, None);
 }
 
 // Bitwise ors two ints.

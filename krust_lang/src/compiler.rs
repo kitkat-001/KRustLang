@@ -30,9 +30,9 @@ pub enum OpCode
     RightShiftInt,
 
     AndInt,
-    AndBool,
+    AndByte,
     XorInt,
-    XorBool,
+    XorByte,
     OrInt,
     OrByte
 }
@@ -137,14 +137,14 @@ fn handle_binary(bytecode: &mut Vec<u8>, ptr_size: u8, left: Box<Expression>, op
             bytecode.push( match expr_type
                 {
                     Type::Int => OpCode::AndInt,
-                    Type::Bool => OpCode::AndBool,
+                    Type::Bool => OpCode::AndByte,
                 } as u8); 
         },
         TokenType::Caret => {
             bytecode.push( match expr_type
                 {
                     Type::Int => OpCode::XorInt,
-                    Type::Bool => OpCode::XorBool,
+                    Type::Bool => OpCode::XorByte,
                 } as u8); 
         },
         TokenType::Bar => {
