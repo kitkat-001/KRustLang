@@ -294,7 +294,7 @@ fn is_digit_option(c_option: &Option<char>) -> bool
     }
 }
 
-// Handles unexpected characters/tokens.
+// Handles keywords and unexpected characters/tokens.
 fn handle_other(
     file_text: &String, 
     tokens: &mut Vec<Token>,
