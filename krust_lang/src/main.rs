@@ -82,7 +82,6 @@ mod tests
         let out_err = run(
             file_path.clone(),
             [(usize::BITS / 8).try_into().expect("length of usize shouldn't be over 1024 bits"), 1]);
-        let _ = fs::remove_file(&file_path);
         assert_eq!(out_err.0, out);
         assert_eq!(all_to_string(&out_err.1), err);
     }

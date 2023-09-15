@@ -289,8 +289,7 @@ fn get_operators(tokens: &Vec<Token>, logs: &mut Vec<Log>, index: &mut usize, pr
                 let expr_type: Option<Type> = operator_list[precendence].get_output_type(
                     &op, vec![expr.get_type()], (logs, source)
                 );
-                Some(Expression::Unary { op, expr: Box::new(expr), 
-                    expr_type: expr_type })
+                Some(Expression::Unary { op, expr: Box::new(expr), expr_type })
             }
             else 
             {
