@@ -1,28 +1,25 @@
 //! The module for debug messages.
 
+use colored::{control::set_override, ColoredString, Colorize};
 use std::fmt::{Display, Formatter, Result};
-use colored::{ColoredString, Colorize, control::set_override};
 
 /// An enum representing anything that can be logged.
 #[derive(Clone, PartialEq, Eq)]
-pub enum LogType
-{
+pub enum LogType {
     Warning(WarningType),
-    Error(ErrorType)
+    Error(ErrorType),
 }
 
 /// An enum representing any possible warning.
 #[derive(Clone, PartialEq, Eq)]
-pub enum WarningType
-{
+pub enum WarningType {
     CLIArgRoundedDownU16(String, u16),
     CLITargetLargerThanMachine(usize),
 }
 
 /// An enum representing any possible error.
 #[derive(Clone, PartialEq, Eq)]
-pub enum ErrorType
-{
+pub enum ErrorType {
     FatalError,
 
     CLIMultipleFiles,
@@ -41,7 +38,7 @@ pub enum ErrorType
     UnrecognizedToken(String),
     UnrepresentableIntegerLiteral(String),
     InvalidArgsForOperator(String, Vec<String>),
-    
+
     ExpectedEOF,
     UnexpectedEOF,
     UnexpectedToken,
@@ -59,21 +56,17 @@ pub enum ErrorType
 
 /// Represents all possible errors as well as helpful debug information when relevant.
 #[derive(Clone, PartialEq, Eq)]
-pub struct Log
-{
+pub struct Log {
     pub log_type: LogType,
-    pub line_and_col: Option<(usize, usize)>
+    pub line_and_col: Option<(usize, usize)>,
 }
 
-impl Display for Log
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result
-    {
-        if let LogType::Error(error_type) = self.log_type.clone()
-        {
-            if let ErrorType::FatalError = error_type
-            {
-                let error: ColoredString = "fatal error; program terminated".to_string().red().bold();
+impl Display for Log {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        if let LogType::Error(error_type) = self.log_type.clone() {
+            if let ErrorType::FatalError = error_type {
+                let error: ColoredString =
+                    "fatal error; program terminated".to_string().red().bold();
                 return write!(f, "{error}");
             }
         }
@@ -81,10 +74,12 @@ impl Display for Log
         let log_type: ColoredString = match self.log_type.clone() {
             LogType::Warning(_) => "warning".to_string().yellow(),
             LogType::Error(_) => "error".to_string().red(),
-        }.bold();
+        }
+        .bold();
 
         let mut message_is_bold: bool = true;
-        let message: String = { match self.log_type.clone() {
+        let message: String = {
+            match self.log_type.clone() {
             LogType::Warning(warning_type) => {match warning_type
             {
                 WarningType::CLIArgRoundedDownU16(arg, value)
@@ -145,21 +140,19 @@ impl Display for Log
                     => format!("this program was compiled for a {ptr_size}-bit machine, while this is only a {}-bit machine.", usize::BITS),
                 ErrorType::DivideByZero => "division by zero.".to_string(),
             }},
-        }};
-        
-        let mut output: String = if self.line_and_col.is_none()
-        {
-            format!("{log_type}: {message}")
-            
         }
-        else 
-        {
-            format!("{log_type} (line {}:{}): {message}", 
-                self.line_and_col.expect("checked by if statement").0, 
-                self.line_and_col.expect("checked by if statement").1)
         };
-        if message_is_bold
-        {
+
+        let mut output: String = if self.line_and_col.is_none() {
+            format!("{log_type}: {message}")
+        } else {
+            format!(
+                "{log_type} (line {}:{}): {message}",
+                self.line_and_col.expect("checked by if statement").0,
+                self.line_and_col.expect("checked by if statement").1
+            )
+        };
+        if message_is_bold {
             output = output.bold().to_string();
         }
         write!(f, "{output}")
@@ -167,12 +160,9 @@ impl Display for Log
 }
 
 /// Returns whether or not a list of logs contains an error.
-pub fn is_error(logs: &Vec<Log>) -> bool
-{
-    for log in logs
-    {
-        if let LogType::Error(_) = log.log_type
-        {
+pub fn is_error(logs: &Vec<Log>) -> bool {
+    for log in logs {
+        if let LogType::Error(_) = log.log_type {
             return true;
         }
     }
@@ -180,22 +170,22 @@ pub fn is_error(logs: &Vec<Log>) -> bool
 }
 
 /// Converts all logs into strings and disables colorizing. Used for testing.
-pub fn all_to_string(logs: &Vec<Log>) -> Vec<String>
-{
+pub fn all_to_string(logs: &Vec<Log>) -> Vec<String> {
     let mut strings: Vec<String> = Vec::new();
     set_override(false);
-    for log in logs
-    {
-        strings.push(ColoredString::from(format!("{log}").as_str()).clear().to_string());
+    for log in logs {
+        strings.push(
+            ColoredString::from(format!("{log}").as_str())
+                .clear()
+                .to_string(),
+        );
     }
     strings
 }
 
 // Formats a vector of strings into a list with commas and "and".
-fn format_vec_string(vec: Vec<String>) -> Option<String>
-{
-    match vec.len()
-    {
+fn format_vec_string(vec: Vec<String>) -> Option<String> {
+    match vec.len() {
         0 => None,
         1 => Some(vec[0].clone()),
         2 => Some({
@@ -206,14 +196,13 @@ fn format_vec_string(vec: Vec<String>) -> Option<String>
         }),
         _ => Some({
             let mut value: String = vec[0].clone();
-            for i in 1..vec.len()-1
-            {
+            for i in 1..vec.len() - 1 {
                 value.push_str(", ");
                 value.push_str(&vec[i]);
             }
             value.push_str(", and ");
-            value.push_str(&vec[vec.len()-1]);
+            value.push_str(&vec[vec.len() - 1]);
             value
-        })
+        }),
     }
 }

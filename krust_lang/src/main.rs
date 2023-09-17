@@ -1,29 +1,23 @@
-use krust::log::{Log, LogType, ErrorType};
-use krust::cli_reader::{CLIInfo, read_command_line};
-use krust::lexer::{LexerOutput, lex};
-use krust::parser::{ParserOutput, parse};
-use krust::compiler::{CompilerOutput, compile};
+use krust::cli_reader::{read_command_line, CLIInfo};
+use krust::compiler::{compile, CompilerOutput};
+use krust::lexer::{lex, LexerOutput};
+use krust::log::{ErrorType, Log, LogType};
+use krust::parser::{parse, ParserOutput};
 use krust::vm;
 
 fn main() {
-    let cli_output: (Option<CLIInfo>, Vec<Log>)  = read_command_line();
-    for log in cli_output.1
-    {
+    let cli_output: (Option<CLIInfo>, Vec<Log>) = read_command_line();
+    for log in cli_output.1 {
         eprintln!("{}", log);
     }
 
-    if cli_output.0.is_some()
-    {
+    if cli_output.0.is_some() {
         let cli_output: CLIInfo = cli_output.0.expect("checked by if statement");
-        let output: (Vec<String>, Vec<Log>) = run(
-            cli_output.file_path,
-            cli_output.cli_args);
-        for string in output.0
-        {
+        let output: (Vec<String>, Vec<Log>) = run(cli_output.file_path, cli_output.cli_args);
+        for string in output.0 {
             println!("{}", string);
         }
-        for string in output.1
-        {
+        for string in output.1 {
             eprintln!("{}", string);
         }
     }
@@ -31,30 +25,27 @@ fn main() {
 
 // Runs the code in the file.
 // TODO: Don't save all the printing till the end, instead print when printing should happen.
-fn run(file_path: String, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>)
-{
+fn run(file_path: String, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
     let lex_output: LexerOutput = lex(&file_path);
     let parse_output: ParserOutput = parse(lex_output);
     let compiler_output: CompilerOutput = compile(parse_output, cli_args);
     let mut output: Vec<String> = Vec::new();
     let mut logs: Vec<Log> = Vec::new();
 
-    for log in compiler_output.logs
-    {
+    for log in compiler_output.logs {
         logs.push(log);
     }
-    if let Some(bytecode) = compiler_output.bytecode
-    {
+    if let Some(bytecode) = compiler_output.bytecode {
         let out_log: (Vec<String>, Vec<Log>) = vm::run(&bytecode);
         output.append(&mut out_log.0.clone());
-        for log in out_log.1
-        {
+        for log in out_log.1 {
             logs.push(log);
         }
-    }
-    else 
-    {
-        logs.push(Log{log_type: LogType::Error(ErrorType::CantCompile), line_and_col: None});
+    } else {
+        logs.push(Log {
+            log_type: LogType::Error(ErrorType::CantCompile),
+            line_and_col: None,
+        });
     }
 
     (output, logs)
@@ -62,47 +53,51 @@ fn run(file_path: String, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>)
 
 /// The module for running tests.
 #[cfg(test)]
-mod tests
-{
-    use krust::vm::math;
-    use krust::log;
+mod tests {
     use super::run;
+    use krust::log;
+    use krust::vm::math;
 
-    use std::fs;
     use log::all_to_string;
+    use std::fs;
 
-    
     use proptest::prelude::*;
 
     // Runs the given code and checks the output against out and err.
-    fn test_code(test_name: &str, code: &str, out: Vec<String>, err: Vec<String>)
-    {
+    fn test_code(test_name: &str, code: &str, out: Vec<String>, err: Vec<String>) {
         let file_path: String = format!("tests/{test_name}.txt");
         fs::write(&file_path, code).expect("file will be created if it doesn't exist");
         let out_err = run(
             file_path,
-            [(usize::BITS / 8).try_into().expect("length of usize shouldn't be over 1024 bits"), 1]);
+            [
+                (usize::BITS / 8)
+                    .try_into()
+                    .expect("length of usize shouldn't be over 1024 bits"),
+                1,
+            ],
+        );
         assert_eq!(out_err.0, out);
         assert_eq!(all_to_string(&out_err.1), err);
     }
 
     #[test]
-    fn above_max_int()
-    {
+    fn above_max_int() {
         test_code(
-            "above_max_int", 
-            format!("{}", 0x8000_0001u32).as_str(), 
-            Vec::new(), 
+            "above_max_int",
+            format!("{}", 0x8000_0001u32).as_str(),
+            Vec::new(),
             vec![
-                format!("error (line 1:1): int literal \"{}\" must be at most {}.", 0x8000_0001u32, 0x8000_0000u32),
-                "error: could not compile due to errors.".to_string()
-            ]
+                format!(
+                    "error (line 1:1): int literal \"{}\" must be at most {}.",
+                    0x8000_0001u32, 0x8000_0000u32
+                ),
+                "error: could not compile due to errors.".to_string(),
+            ],
         );
     }
 
     #[test]
-    fn max_int_no_sign()
-    {
+    fn max_int_no_sign() {
         test_code(
             "max_int_no_sign", 
             format!("{}", 0x8000_0000u32).as_str(), 
@@ -115,44 +110,43 @@ mod tests
     }
 
     #[test]
-    fn max_pos_int()
-    {
+    fn max_pos_int() {
         test_code(
-            "max_int_pos", 
-            format!("{}", 0x8000_0000u32 - 1).as_str(), 
-            vec![format!("{}", 0x8000_0000u32 - 1)], 
-            Vec::new()
+            "max_int_pos",
+            format!("{}", 0x8000_0000u32 - 1).as_str(),
+            vec![format!("{}", 0x8000_0000u32 - 1)],
+            Vec::new(),
         );
     }
 
     #[test]
-    fn below_min_int()
-    {
+    fn below_min_int() {
         test_code(
-            "below_min_int", 
-            format!("-{}", 0x8000_0001u32).as_str(), 
-            Vec::new(), 
+            "below_min_int",
+            format!("-{}", 0x8000_0001u32).as_str(),
+            Vec::new(),
             vec![
-                format!("error (line 1:2): int literal \"{}\" must be at most {}.", 0x8000_0001u32, 0x8000_0000u32),
-                "error: could not compile due to errors.".to_string()
-            ]
+                format!(
+                    "error (line 1:2): int literal \"{}\" must be at most {}.",
+                    0x8000_0001u32, 0x8000_0000u32
+                ),
+                "error: could not compile due to errors.".to_string(),
+            ],
         );
     }
 
     #[test]
-    fn min_int()
-    {
+    fn min_int() {
         test_code(
-            "min_int", 
-            format!("-{}", 0x8000_0000u32).as_str(), 
-            vec![format!("-{}", 0x8000_0000u32)], 
-            Vec::new()
+            "min_int",
+            format!("-{}", 0x8000_0000u32).as_str(),
+            vec![format!("-{}", 0x8000_0000u32)],
+            Vec::new(),
         );
     }
 
     #[test]
-    fn open_left_paren()
-    {
+    fn open_left_paren() {
         test_code(
             "open_left_paren",
             "(",
@@ -160,14 +154,13 @@ mod tests
             vec![
                 "error (line 1:2): unexpected end of file.".to_string(),
                 "error (line 1:2): expected \')\' following \'(\'.".to_string(),
-                "error: could not compile due to errors.".to_string()
-            ]
+                "error: could not compile due to errors.".to_string(),
+            ],
         )
     }
 
     #[test]
-    fn open_right_paren()
-    {
+    fn open_right_paren() {
         test_code(
             "open_right_paren",
             ")",
@@ -175,33 +168,32 @@ mod tests
             vec![
                 "error (line 1:1): unexpected token.".to_string(),
                 "error (line 1:2): unexpected end of file.".to_string(),
-                "error: could not compile due to errors.".to_string()
-            ]
+                "error: could not compile due to errors.".to_string(),
+            ],
         )
     }
 
     #[test]
-    fn empty_parens()
-    {
+    fn empty_parens() {
         test_code(
             "empty_parens",
             "()",
             Vec::new(),
             vec![
                 "error (line 1:2): expected expression within parentheses.".to_string(),
-                "error: could not compile due to errors.".to_string()
-            ]
+                "error: could not compile due to errors.".to_string(),
+            ],
         )
     }
-    
+
     proptest! {
         #[test]
         fn random_int(value in proptest::num::i32::ANY)
         {
             test_code(
-                "random_int", 
-                format!("{value}").as_str(), 
-                vec![format!("{value}")], 
+                "random_int",
+                format!("{value}").as_str(),
+                vec![format!("{value}")],
                 Vec::new()
             );
         }
@@ -210,9 +202,9 @@ mod tests
         fn add_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "add_ints", 
-                format!("{a}+{b}").as_str(), 
-                vec![format!("{}", i32::wrapping_add(a, b))], 
+                "add_ints",
+                format!("{a}+{b}").as_str(),
+                vec![format!("{}", i32::wrapping_add(a, b))],
                 Vec::new()
             );
         }
@@ -221,9 +213,9 @@ mod tests
         fn sub_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "sub_ints", 
-                format!("{a}-{b}").as_str(), 
-                vec![format!("{}", i32::wrapping_sub(a, b))], 
+                "sub_ints",
+                format!("{a}-{b}").as_str(),
+                vec![format!("{}", i32::wrapping_sub(a, b))],
                 Vec::new()
             );
         }
@@ -232,27 +224,27 @@ mod tests
         fn mul_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "mul_ints", 
-                format!("{a}*{b}").as_str(), 
-                vec![format!("{}", i32::wrapping_mul(a, b))], 
+                "mul_ints",
+                format!("{a}*{b}").as_str(),
+                vec![format!("{}", i32::wrapping_mul(a, b))],
                 Vec::new()
             );
         }
 
         #[test]
         fn div_ints(
-            a in proptest::num::i32::ANY, 
+            a in proptest::num::i32::ANY,
             b in proptest::num::i32::ANY.prop_filter
             (
-                "Division by zero is invalid", 
+                "Division by zero is invalid",
                 |b| *b != 0
             )
         )
         {
             test_code(
-                "div_ints", 
-                format!("{a}/{b}").as_str(), 
-                vec![format!("{}", i32::wrapping_div(a, b))], 
+                "div_ints",
+                format!("{a}/{b}").as_str(),
+                vec![format!("{}", i32::wrapping_div(a, b))],
                 Vec::new()
             );
         }
@@ -262,7 +254,7 @@ mod tests
         {
             test_code(
                 "div_by_zero",
-                format!("{a}/0").as_str(), 
+                format!("{a}/0").as_str(),
                 Vec::new(),
                 vec![format!("error (line 1:{}): division by zero.", format!("{a}").chars().count() + 1)]
             );
@@ -270,18 +262,18 @@ mod tests
 
         #[test]
         fn mod_ints(
-            a in proptest::num::i32::ANY, 
+            a in proptest::num::i32::ANY,
             b in proptest::num::i32::ANY.prop_filter
             (
-                "Modulo by zero is invalid", 
+                "Modulo by zero is invalid",
                 |b| *b != 0
             )
         )
         {
             test_code(
-                "mod_ints", 
-                format!("{a}%{b}").as_str(), 
-                vec![format!("{}", i32::wrapping_rem_euclid(a, b))], 
+                "mod_ints",
+                format!("{a}%{b}").as_str(),
+                vec![format!("{}", i32::wrapping_rem_euclid(a, b))],
                 Vec::new()
             );
         }
@@ -291,7 +283,7 @@ mod tests
         {
             test_code(
                 "mod_by_zero",
-                format!("{a}%0").as_str(), 
+                format!("{a}%0").as_str(),
                 Vec::new(),
                 vec![format!("error (line 1:{}): division by zero.", format!("{a}").chars().count() + 1)]
             );
@@ -301,9 +293,9 @@ mod tests
         fn complement_int(a in proptest::num::i32::ANY)
         {
             test_code(
-                "complement_int", 
-                format!("~{a}").as_str(), 
-                vec![format!("{}", !a)], 
+                "complement_int",
+                format!("~{a}").as_str(),
+                vec![format!("{}", !a)],
                 Vec::new()
             );
         }
@@ -312,9 +304,9 @@ mod tests
         fn left_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "left_shift_ints", 
-                format!("{a}<<{b}").as_str(), 
-                vec![format!("{}", math::shift_int(a, b))], 
+                "left_shift_ints",
+                format!("{a}<<{b}").as_str(),
+                vec![format!("{}", math::shift_int(a, b))],
                 Vec::new()
             );
         }
@@ -323,9 +315,9 @@ mod tests
         fn right_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "right_shift_ints", 
-                format!("{a}>>{b}").as_str(), 
-                vec![format!("{}", math::shift_int(a, i32::wrapping_neg(b)))], 
+                "right_shift_ints",
+                format!("{a}>>{b}").as_str(),
+                vec![format!("{}", math::shift_int(a, i32::wrapping_neg(b)))],
                 Vec::new()
             );
         }
@@ -334,9 +326,9 @@ mod tests
         fn and_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "and_int", 
-                format!("{a} & {b}").as_str(), 
-                vec![format!("{}", a & b)], 
+                "and_int",
+                format!("{a} & {b}").as_str(),
+                vec![format!("{}", a & b)],
                 Vec::new()
             );
         }
@@ -345,9 +337,9 @@ mod tests
         fn and_bool(a in proptest::bool::ANY, b in proptest::bool::ANY)
         {
             test_code(
-                "and_bool", 
-                format!("{a} & {b}").as_str(), 
-                vec![format!("{}", a & b)], 
+                "and_bool",
+                format!("{a} & {b}").as_str(),
+                vec![format!("{}", a & b)],
                 Vec::new()
             );
         }
@@ -356,9 +348,9 @@ mod tests
         fn xor_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "xor_int", 
-                format!("{a} ^ {b}").as_str(), 
-                vec![format!("{}", a ^ b)], 
+                "xor_int",
+                format!("{a} ^ {b}").as_str(),
+                vec![format!("{}", a ^ b)],
                 Vec::new()
             );
         }
@@ -367,9 +359,9 @@ mod tests
         fn xor_bool(a in proptest::bool::ANY, b in proptest::bool::ANY)
         {
             test_code(
-                "xor_bool",  
-                format!("{a} ^ {b}").as_str(), 
-                vec![format!("{}", a ^ b)], 
+                "xor_bool",
+                format!("{a} ^ {b}").as_str(),
+                vec![format!("{}", a ^ b)],
                 Vec::new()
             );
         }
@@ -378,9 +370,9 @@ mod tests
         fn or_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
         {
             test_code(
-                "or_int", 
-                format!("{a} | {b}").as_str(), 
-                vec![format!("{}", a | b)], 
+                "or_int",
+                format!("{a} | {b}").as_str(),
+                vec![format!("{}", a | b)],
                 Vec::new()
             );
         }
@@ -389,9 +381,9 @@ mod tests
         fn or_bool(a in proptest::bool::ANY, b in proptest::bool::ANY)
         {
             test_code(
-                "or_bool",  
-                format!("{a} | {b}").as_str(), 
-                vec![format!("{}", a | b)], 
+                "or_bool",
+                format!("{a} | {b}").as_str(),
+                vec![format!("{}", a | b)],
                 Vec::new()
             );
         }
@@ -401,7 +393,7 @@ mod tests
         {
             test_code(
                 "double_add",
-                format!("{a}++{b}").as_str(), 
+                format!("{a}++{b}").as_str(),
                 Vec::new(),
                 vec![
                     format!("error (line 1:{}): unexpected token.", format!("{a}").chars().count() + 2),
@@ -418,7 +410,7 @@ mod tests
         )
         {
             test_code(
-                "order_of_ops", 
+                "order_of_ops",
                 format!("{a}+{b}*{c}").as_str(),
                 vec![format!("{}", i32::wrapping_add(a, i32::wrapping_mul(b, c)))],
                 Vec::new()
@@ -434,7 +426,7 @@ mod tests
         )
         {
             test_code(
-                "bitwise_order_of_ops", 
+                "bitwise_order_of_ops",
                 format!("{a} | {b} ^ {c} & {d}").as_str(),
                 vec![format!("{}", a | (b ^ (c & d)))],
                 Vec::new()
@@ -449,7 +441,7 @@ mod tests
         )
         {
             test_code(
-                "mixed_order_of_ops", 
+                "mixed_order_of_ops",
                 format!("{a} & {b} + {c}").as_str(),
                 vec![format!("{}", a  & i32::wrapping_add(b, c))],
                 Vec::new()
@@ -465,7 +457,7 @@ mod tests
         )
         {
             test_code(
-                "bool_order_of_ops", 
+                "bool_order_of_ops",
                 format!("{a} | {b} ^ {c} & {d}").as_str(),
                 vec![format!("{}", a | (b ^ (c & d)))],
                 Vec::new()
@@ -481,7 +473,7 @@ mod tests
         )
         {
             test_code(
-                "paren_test", 
+                "paren_test",
                 format!("{a}*({b}+{c})").as_str(),
                 vec![format!("{}", i32::wrapping_mul(a, i32::wrapping_add(b, c)))],
                 Vec::new()
