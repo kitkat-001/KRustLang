@@ -170,12 +170,12 @@ fn handle_literal(bytecode: &mut Vec<u8>, token: Token)
         TokenType::True =>
         {
             bytecode.push(OpCode::PushByte as u8);
-            bytecode.push(1 as u8);
+            bytecode.push(1_u8);
         }
         TokenType::False =>
         {
             bytecode.push(OpCode::PushByte as u8);
-            bytecode.push(0 as u8);
+            bytecode.push(0_u8);
         }
         _ => panic!("all literals should have been accounted for")
     }

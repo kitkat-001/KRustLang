@@ -25,7 +25,7 @@ fn main() {
         let mut logs: Vec<Log> = compiler_output.logs.clone();
         if let Some(bytecode) = compiler_output.bytecode
         {
-            let file_path: String = cli_output.file_path.clone().strip_suffix("txt")
+            let file_path: String = cli_output.file_path.strip_suffix("txt")
                     .expect("file name is more than just suffix")
                     .to_string() + "exe";
             let result: Result<(), Error> = create_compiled_exe(&bytecode, &file_path);

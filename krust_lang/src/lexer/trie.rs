@@ -21,7 +21,7 @@ impl<TKey: PartialEq + Clone, TValue: Clone> Node<TKey, TValue>
     /// Returns the value corresponding with the key if found.
     pub fn search(&self, key: &Vec<TKey>) -> Option<TValue>
     {
-        if key.len() == 0
+        if key.is_empty()
         {
             return self.value.clone();
         }
@@ -49,9 +49,9 @@ impl<TKey: PartialEq + Clone, TValue: Clone> Node<TKey, TValue>
     // Returns whether or not the insertion was successful.
     fn insert(&mut self, key: &Vec<TKey>, value: &TValue) -> bool
     {
-        if key.len() == 0
+        if key.is_empty()
         {
-            if let None = self.value
+            if self.value.is_none()
             {
                 self.value = Some(value.clone());
                 return true;
@@ -64,7 +64,7 @@ impl<TKey: PartialEq + Clone, TValue: Clone> Node<TKey, TValue>
             {
                 let mut key: Vec<TKey> = key.clone();
                 key.remove(0);
-                return child.insert(&key, &value);
+                return child.insert(&key, value);
             }
         }
         let mut new_child: Node<TKey, TValue> = Node{key: Some(key[0].clone()), children: Vec::new(), value: None};

@@ -168,26 +168,26 @@ fn pop_bool(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>)
 // Gets the negative of an int.
 fn minus_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    unary_int(stack, logs, |a: i32| i32::wrapping_neg(a));
+    unary_int(stack, logs, i32::wrapping_neg);
 }
 
 // Adds two ints.
 fn add_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs, |a, b| i32::wrapping_add(a, b), None);
+    binary_int(stack, logs, i32::wrapping_add, None);
 }
 
 // Subtracts two ints.
 fn subtract_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 
 {
-    binary_int(stack, logs, |a, b| i32::wrapping_sub(a, b), None);
+    binary_int(stack, logs, i32::wrapping_sub, None);
 }
 
 // Multiplies two ints.
 fn multiply_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) 
 {
-    binary_int(stack, logs, |a, b| i32::wrapping_mul(a, b), None);
+    binary_int(stack, logs, i32::wrapping_mul, None);
 }
 
 // Divides two ints. Reports an error if the second int is zero.
@@ -222,7 +222,7 @@ fn complement_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 // Left shifts an int by an int
 fn left_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
 {
-    binary_int(stack, logs, |a, b| shift_int(a, b), None);
+    binary_int(stack, logs, shift_int, None);
 }
 
 // Left shifts an int by an int

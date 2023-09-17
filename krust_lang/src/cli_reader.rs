@@ -24,7 +24,7 @@ const COMPILER_FLAGS: [&str; 2] = ["-pointer_size", "-detailed_errors"];
 pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>)
 {
     let input: Result<Vec<String>, Vec<Log>>  = get_args();
-    if input.is_err() {return (None, input.err().expect("checked by if statement"))};
+    if input.is_err() {return (None, input.expect_err("checked by if statement"))};
     let input: Vec<String> = input.ok().expect("checked by if statement");
     let mut file_path: Option<String> = None;
     let mut ptr_size: u16 = min(usize::BITS, 2047).try_into().expect("should be valid as max value is less than u16::MAX");
@@ -33,9 +33,9 @@ pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>)
     let mut multiple_file_error: bool = false;
     for arg in input
     {
-        if arg.ends_with(".txt") && multiple_file_error == false
+        if arg.ends_with(".txt") && !multiple_file_error
         {
-            if let None = file_path
+            if file_path.is_none()
             {
                 file_path = Some(arg.to_string());
             }
@@ -84,7 +84,7 @@ fn get_args<'a>() -> Result<Vec<String>, Vec<Log>>
 fn handle_ptr_size (arg: &String, logs: &mut Vec<Log>, mut ptr_size: u16) -> u16
 {
     let arg: &str = &arg[COMPILER_FLAGS[0].len()..];
-    if !arg.starts_with("=")
+    if !arg.starts_with('=')
     {
         logs.push(Log{log_type: LogType::Error(ErrorType::CLIRequiresArg(COMPILER_FLAGS[0].to_string())), line_and_col: None});
     }
@@ -115,7 +115,7 @@ fn handle_ptr_size (arg: &String, logs: &mut Vec<Log>, mut ptr_size: u16) -> u16
 fn handle_detailed_err (arg: &String, logs: &mut Vec<Log>) -> bool
 {
     let arg: &str = &arg[COMPILER_FLAGS[1].len()..];
-    if !arg.starts_with("=")
+    if !arg.starts_with('=')
     {
         logs.push(Log{log_type: LogType::Error(ErrorType::CLIRequiresArg(COMPILER_FLAGS[1].to_string())), line_and_col: None});
     }
@@ -157,7 +157,7 @@ fn get_result(
 {
     let file_size: usize = get_file_size(&file_path, logs, multiple_file_error);
 
-    if logs.len() > 0
+    if !logs.is_empty()
     {
         (None, logs.clone())
     }

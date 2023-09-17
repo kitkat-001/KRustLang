@@ -147,7 +147,7 @@ impl Display for Log
             }},
         }};
         
-        let mut output: String = if let None = self.line_and_col
+        let mut output: String = if self.line_and_col.is_none()
         {
             format!("{log_type}: {message}")
             

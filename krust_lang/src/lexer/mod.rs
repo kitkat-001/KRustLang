@@ -136,7 +136,7 @@ fn get_token(
     ]);
 
     // EOF
-    if let None = c
+    if c.is_none()
     {
         tokens.push(Token{token_type: TokenType::EOF, line: *line, col: *col, start: *index, length: 0});
         return Some(LexerOutput{
@@ -157,7 +157,7 @@ fn get_token(
         handle_white_space(file_text, c, line, col, index);
     }
     else if handle_shift(file_text, tokens, line, col, index) {}
-    else if c >= '0' && c <= '9'
+    else if c.is_ascii_digit()
     {
         handle_number(file_text, tokens, logs, line, col, index);
     }
@@ -256,7 +256,7 @@ fn handle_number(
     let token: Token = Token{token_type, line: *line, col: *col, start: *index, length};
     if let TokenType::Error = token.token_type
     {
-        logs.push(Log{log_type: LogType::Error(ErrorType::UnrepresentableIntegerLiteral(token.to_string(&file_text))), 
+        logs.push(Log{log_type: LogType::Error(ErrorType::UnrepresentableIntegerLiteral(token.to_string(file_text))), 
             line_and_col: Some((*line, *col,))});
     }
     tokens.push(token);
@@ -267,7 +267,7 @@ fn handle_number(
 // Converts an integer literal to a token type.
 fn get_int_literal_token_type(int_literal: Result<u32, ParseIntError>) -> TokenType
 {
-    if let Err(_) = int_literal
+    if int_literal.is_err()
     { 
         return TokenType::Error; 
     }
@@ -276,11 +276,11 @@ fn get_int_literal_token_type(int_literal: Result<u32, ParseIntError>) -> TokenT
     // 0x8000_0000 is the largest possible absolute value of an i32.
     if value > 0x8000_0000u32
     {
-        return TokenType::Error;
+        TokenType::Error
     }
     else
     {
-        return TokenType::IntLiteral(value);
+        TokenType::IntLiteral(value)
     }
 }
 
@@ -290,7 +290,7 @@ fn is_digit_option(c_option: &Option<char>) -> bool
     match c_option
     {
         None => false,
-        Some(c) => c >= &'0' && c <= &'9'
+        Some(c) => (&'0'..=&'9').contains(&c)
     }
 }
 
@@ -316,7 +316,7 @@ fn handle_other(
     let token: Token = Token{token_type, line: *line, col: *col, start: *index, length};
     if let TokenType::Error = token_type
     {
-        logs.push(Log{log_type: LogType::Error(ErrorType::UnrecognizedToken(token.to_string(&file_text))), 
+        logs.push(Log{log_type: LogType::Error(ErrorType::UnrecognizedToken(token.to_string(file_text))), 
             line_and_col: Some((*line, *col,))});
     }
     tokens.push(token);

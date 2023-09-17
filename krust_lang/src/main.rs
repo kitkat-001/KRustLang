@@ -71,7 +71,7 @@ mod tests
     use std::fs;
     use log::all_to_string;
 
-    use proptest;
+    
     use proptest::prelude::*;
 
     // Runs the given code and checks the output against out and err.
@@ -80,7 +80,7 @@ mod tests
         let file_path: String = format!("tests/{test_name}.txt");
         fs::write(&file_path, code).expect("file will be created if it doesn't exist");
         let out_err = run(
-            file_path.clone(),
+            file_path,
             [(usize::BITS / 8).try_into().expect("length of usize shouldn't be over 1024 bits"), 1]);
         assert_eq!(out_err.0, out);
         assert_eq!(all_to_string(&out_err.1), err);
