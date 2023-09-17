@@ -7,7 +7,7 @@ use parser::{Expression, ParserOutput, Type};
 
 use num_derive::FromPrimitive;
 
-/// The OpCode used in the bytecode.
+/// The `OpCode` used in the bytecode.
 #[derive(FromPrimitive)]
 pub enum OpCode {
     PushInt,
@@ -44,7 +44,7 @@ pub struct CompilerOutput {
 }
 
 /// Compiles to bytecode.
-pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput {
+#[must_use] pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput {
     let mut bytecode: Option<Vec<u8>> = None;
     let mut logs: Vec<Log> = parser_output.logs.clone();
 
@@ -202,7 +202,7 @@ fn handle_literal(bytecode: &mut Vec<u8>, token: Token) {
 fn usize_to_ptr_size(value: usize, ptr_size: u8) -> Vec<u8> {
     let usize_size_bytes: u32 = usize::BITS / 8;
     let bytes: [u8; 8] = value.to_le_bytes();
-    let bytes: &[u8] = &bytes[..u32::min(ptr_size as u32, usize_size_bytes) as usize];
+    let bytes: &[u8] = &bytes[..u32::min(u32::from(ptr_size), usize_size_bytes) as usize];
     let mut bytes: Vec<u8> = bytes.to_vec();
     while bytes.len() < ptr_size as usize {
         bytes.push(0);

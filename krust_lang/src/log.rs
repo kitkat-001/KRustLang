@@ -64,7 +64,7 @@ pub struct Log {
 impl Display for Log {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         if let LogType::Error(error_type) = self.log_type.clone() {
-            if let ErrorType::FatalError = error_type {
+            if error_type == ErrorType::FatalError {
                 let error: ColoredString =
                     "fatal error; program terminated".to_string().red().bold();
                 return write!(f, "{error}");
@@ -118,7 +118,7 @@ impl Display for Log {
                 ErrorType::UnrepresentableIntegerLiteral(token) 
                     => format!("int literal \"{token}\" must be at most {}.", 0x_8000_0000u32),
                 ErrorType::InvalidArgsForOperator(op, types)
-                    => format!("the operator \"{op}\" has no definition over the types {}", format_vec_string(types).unwrap_or("".to_string())),
+                    => format!("the operator \"{op}\" has no definition over the types {}", format_vec_string(types).unwrap_or_default()),
 
                 ErrorType::ExpectedEOF => "expected end of file.".to_string(),
                 ErrorType::UnexpectedEOF => "unexpected end of file.".to_string(),
@@ -160,7 +160,7 @@ impl Display for Log {
 }
 
 /// Returns whether or not a list of logs contains an error.
-pub fn is_error(logs: &Vec<Log>) -> bool {
+#[must_use] pub fn is_error(logs: &Vec<Log>) -> bool {
     for log in logs {
         if let LogType::Error(_) = log.log_type {
             return true;
@@ -170,7 +170,7 @@ pub fn is_error(logs: &Vec<Log>) -> bool {
 }
 
 /// Converts all logs into strings and disables colorizing. Used for testing.
-pub fn all_to_string(logs: &Vec<Log>) -> Vec<String> {
+#[must_use] pub fn all_to_string(logs: &Vec<Log>) -> Vec<String> {
     let mut strings: Vec<String> = Vec::new();
     set_override(false);
     for log in logs {

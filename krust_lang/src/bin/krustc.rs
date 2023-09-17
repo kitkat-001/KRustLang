@@ -1,3 +1,9 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::restriction)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+
 use krust::cli_reader::{read_command_line, CLIInfo};
 use krust::compiler::{compile, CompilerOutput};
 use krust::lexer::{lex, LexerOutput};
@@ -12,7 +18,7 @@ use std::process::Command;
 fn main() {
     let cli_output: (Option<CLIInfo>, Vec<Log>) = read_command_line();
     for log in cli_output.1 {
-        eprintln!("{}", log);
+        eprintln!("{log}");
     }
 
     if cli_output.0.is_some() {
@@ -50,7 +56,7 @@ fn main() {
 fn generate_bytecode(file_path: &String, cli_args: [u8; 2]) -> CompilerOutput {
     let lex_output: LexerOutput = lex(file_path);
     let parse_output: ParserOutput = parse(lex_output);
-    compile(parse_output, cli_args)
+    return compile(parse_output, cli_args)
 }
 
 // Create the exe.
@@ -78,9 +84,9 @@ fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &String) -> Result<(), Err
         "/",
         "src/bin/program.rs"
     ))?;
-    file.write_all("fn main() {}".as_bytes())?;
+    file.write_all(b"fn main() {}")?;
     Command::new("cargo").arg("build").output()?;
-    Ok(())
+    return Ok(())
 }
 
 // Creates the rust code that can be compiled into an executable.
@@ -90,7 +96,7 @@ fn create_code(bytecode: &Vec<u8>) -> String {
 use krust::vm;
     
 fn main(){{
-    let bytecode: Vec<u8> = vec!{:?};
+    let bytecode: Vec<u8> = vec!{bytecode:?};
     let out_err: (Vec<String>, Vec<Log>) = vm::run(&bytecode);
     for string in out_err.0
     {{
@@ -100,7 +106,6 @@ fn main(){{
     {{
         eprintln!(\"{{}}\", log);
     }}
-}}",
-        bytecode
+}}"
     )
 }

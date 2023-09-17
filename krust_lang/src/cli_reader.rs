@@ -20,7 +20,7 @@ pub struct CLIInfo {
 const COMPILER_FLAGS: [&str; 2] = ["-pointer_size", "-detailed_errors"];
 
 /// Get file name and compiler flags from the command line.
-pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>) {
+#[must_use] pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>) {
     let input: Result<Vec<String>, Vec<Log>> = get_args();
     if input.is_err() {
         return (None, input.expect_err("checked by if statement"));
@@ -158,7 +158,7 @@ fn handle_detailed_err(arg: &String, logs: &mut Vec<Log>) -> bool {
 // Handle unrecognized flags in the command line.
 fn handle_unrecognized_flag(arg: &String, logs: &mut Vec<Log>) {
     let index: Option<usize> = arg.find('=');
-    let mut arg_substr: &str = &arg[..];
+    let mut arg_substr: &str = arg;
     if let Some(i) = index {
         arg_substr = &arg[..i]
     }
@@ -223,7 +223,7 @@ fn handle_compiler_flag_issues(
     file_size: usize,
 ) -> (Option<CLIInfo>, Vec<Log>) {
     if let Some(file_path) = file_path {
-        let detailed_err: u8 = if detailed_err { 1 } else { 0 };
+        let detailed_err: u8 = u8::from(detailed_err);
         let ptr_size_bytes: u8 = (ptr_size / 8)
             .try_into()
             .expect("ptr_size maximum is less than 2048");

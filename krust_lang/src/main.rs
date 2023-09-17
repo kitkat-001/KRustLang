@@ -1,3 +1,9 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::restriction)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+
 use krust::cli_reader::{read_command_line, CLIInfo};
 use krust::compiler::{compile, CompilerOutput};
 use krust::lexer::{lex, LexerOutput};
@@ -8,17 +14,17 @@ use krust::vm;
 fn main() {
     let cli_output: (Option<CLIInfo>, Vec<Log>) = read_command_line();
     for log in cli_output.1 {
-        eprintln!("{}", log);
+        eprintln!("{log}");
     }
 
     if cli_output.0.is_some() {
         let cli_output: CLIInfo = cli_output.0.expect("checked by if statement");
         let output: (Vec<String>, Vec<Log>) = run(cli_output.file_path, cli_output.cli_args);
         for string in output.0 {
-            println!("{}", string);
+            println!("{string}");
         }
         for string in output.1 {
-            eprintln!("{}", string);
+            eprintln!("{string}");
         }
     }
 }
@@ -48,7 +54,7 @@ fn run(file_path: String, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
         });
     }
 
-    (output, logs)
+    return (output, logs)
 }
 
 /// The module for running tests.
@@ -84,12 +90,12 @@ mod tests {
     fn above_max_int() {
         test_code(
             "above_max_int",
-            format!("{}", 0x8000_0001u32).as_str(),
+            format!("{}", 0x8000_0001_u32).as_str(),
             Vec::new(),
             vec![
                 format!(
                     "error (line 1:1): int literal \"{}\" must be at most {}.",
-                    0x8000_0001u32, 0x8000_0000u32
+                    0x8000_0001_u32, 0x8000_0000_u32
                 ),
                 "error: could not compile due to errors.".to_string(),
             ],
@@ -100,10 +106,10 @@ mod tests {
     fn max_int_no_sign() {
         test_code(
             "max_int_no_sign", 
-            format!("{}", 0x8000_0000u32).as_str(), 
+            format!("{}", 0x8000_0000_u32).as_str(), 
             Vec::new(), 
             vec![
-                format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000u32),
+                format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000_u32),
                 "error: could not compile due to errors.".to_string()
             ]
         );
@@ -113,8 +119,8 @@ mod tests {
     fn max_pos_int() {
         test_code(
             "max_int_pos",
-            format!("{}", 0x8000_0000u32 - 1).as_str(),
-            vec![format!("{}", 0x8000_0000u32 - 1)],
+            format!("{}", 0x8000_0000_u32 - 1).as_str(),
+            vec![format!("{}", 0x8000_0000_u32 - 1)],
             Vec::new(),
         );
     }
@@ -123,12 +129,12 @@ mod tests {
     fn below_min_int() {
         test_code(
             "below_min_int",
-            format!("-{}", 0x8000_0001u32).as_str(),
+            format!("-{}", 0x8000_0001_u32).as_str(),
             Vec::new(),
             vec![
                 format!(
                     "error (line 1:2): int literal \"{}\" must be at most {}.",
-                    0x8000_0001u32, 0x8000_0000u32
+                    0x8000_0001_u32, 0x8000_0000_u32
                 ),
                 "error: could not compile due to errors.".to_string(),
             ],
@@ -139,8 +145,8 @@ mod tests {
     fn min_int() {
         test_code(
             "min_int",
-            format!("-{}", 0x8000_0000u32).as_str(),
-            vec![format!("-{}", 0x8000_0000u32)],
+            format!("-{}", 0x8000_0000_u32).as_str(),
+            vec![format!("-{}", 0x8000_0000_u32)],
             Vec::new(),
         );
     }
@@ -237,7 +243,7 @@ mod tests {
             b in proptest::num::i32::ANY.prop_filter
             (
                 "Division by zero is invalid",
-                |b| *b != 0
+                |b| return *b != 0
             )
         )
         {
@@ -266,7 +272,7 @@ mod tests {
             b in proptest::num::i32::ANY.prop_filter
             (
                 "Modulo by zero is invalid",
-                |b| *b != 0
+                |b| return *b != 0
             )
         )
         {

@@ -58,7 +58,7 @@ pub enum TokenType {
 
 impl Token {
     /// Converts the token to a string given the text it came from.
-    pub fn to_string<'a>(&'a self, source: &'a str) -> String {
+    #[must_use] pub fn to_string<'a>(&'a self, source: &'a str) -> String {
         if self.token_type == TokenType::EOF {
             "EOF".to_string()
         } else {
@@ -75,7 +75,7 @@ pub struct LexerOutput {
 }
 
 /// Lexes the file given in the command line.
-pub fn lex(file_path: &str) -> LexerOutput {
+#[must_use] pub fn lex(file_path: &str) -> LexerOutput {
     // Prepare fields for output.
     let file_text: Result<String, Error> = read_to_string(file_path);
     let file_text: String = file_text
@@ -263,7 +263,7 @@ fn handle_number(
         start: *index,
         length,
     };
-    if let TokenType::Error = token.token_type {
+    if token.token_type == TokenType::Error {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::UnrepresentableIntegerLiteral(
                 token.to_string(file_text),
@@ -327,7 +327,7 @@ fn handle_other(
         start: *index,
         length,
     };
-    if let TokenType::Error = token_type {
+    if token_type == TokenType::Error {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::UnrecognizedToken(token.to_string(file_text))),
             line_and_col: Some((*line, *col)),

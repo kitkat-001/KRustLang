@@ -18,7 +18,7 @@ struct RuntimeError<'a, T> {
 }
 
 /// Runs the bytecode.
-pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
+#[must_use] pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
     let mut output: Vec<String> = Vec::new();
     let mut logs: Vec<Log> = Vec::new();
 
@@ -148,7 +148,7 @@ fn push_byte(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &
 fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>) {
     let value: Option<i32> = pop_int_from_stack(stack);
     if let Some(value) = value {
-        output.push(format!("{}", value));
+        output.push(format!("{value}"));
     } else {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::FatalError),

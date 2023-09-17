@@ -14,8 +14,8 @@ pub enum Type {
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Type::Int => write!(f, "\"int\""),
-            Type::Bool => write!(f, "\"bool\""),
+            Self::Int => write!(f, "\"int\""),
+            Self::Bool => write!(f, "\"bool\""),
         }
     }
 }
@@ -57,7 +57,7 @@ pub struct ParserOutput {
 impl Expression {
     // Returns whether or not this expression represents the end of the file.
     fn is_eof(&self) -> bool {
-        if let Expression::EOF = *self {
+        if matches!(*self, Self::EOF) {
             true
         } else {
             false
@@ -65,12 +65,12 @@ impl Expression {
     }
 
     // Returns the type of the expression
-    pub fn get_type(&self) -> Option<Type> {
+    #[must_use] pub fn get_type(&self) -> Option<Type> {
         match &self {
-            Expression::Binary { expr_type, .. } => *expr_type,
-            Expression::Grouping { expr_type, .. } => *expr_type,
-            Expression::Literal { expr_type, .. } => *expr_type,
-            Expression::Unary { expr_type, .. } => *expr_type,
+            Self::Binary { expr_type, .. } => *expr_type,
+            Self::Grouping { expr_type, .. } => *expr_type,
+            Self::Literal { expr_type, .. } => *expr_type,
+            Self::Unary { expr_type, .. } => *expr_type,
 
             _ => None,
         }
@@ -93,8 +93,8 @@ struct OpList {
 impl OpList {
     // Gets the default list of operators used by the language.
     fn get_op_lists() -> [Self; 7] {
-        [
-            OpList {
+        return [
+            Self {
                 list: vec![
                     Operator {
                         token: TokenType::Bar,
@@ -108,7 +108,7 @@ impl OpList {
                     },
                 ],
             },
-            OpList {
+            Self {
                 list: vec![
                     Operator {
                         token: TokenType::Caret,
@@ -122,7 +122,7 @@ impl OpList {
                     },
                 ],
             },
-            OpList {
+            Self {
                 list: vec![
                     Operator {
                         token: TokenType::Ampersand,
@@ -136,7 +136,7 @@ impl OpList {
                     },
                 ],
             },
-            OpList {
+            Self {
                 list: vec![
                     Operator {
                         token: TokenType::LeftShift,
@@ -150,7 +150,7 @@ impl OpList {
                     },
                 ],
             },
-            OpList {
+            Self {
                 list: vec![
                     Operator {
                         token: TokenType::Plus,
@@ -164,7 +164,7 @@ impl OpList {
                     },
                 ],
             },
-            OpList {
+            Self {
                 list: vec![
                     Operator {
                         token: TokenType::Star,
@@ -183,7 +183,7 @@ impl OpList {
                     },
                 ],
             },
-            OpList {
+            Self {
                 list: vec![
                     Operator {
                         token: TokenType::Minus,
@@ -282,7 +282,7 @@ impl OpList {
 }
 
 /// Parse the output from the lexer.
-pub fn parse(lex_output: LexerOutput) -> ParserOutput {
+#[must_use] pub fn parse(lex_output: LexerOutput) -> ParserOutput {
     let mut logs: Vec<Log> = lex_output.logs.clone();
     let mut index: usize = 0;
     let tokens: Vec<Token> = lex_output.tokens;
@@ -374,7 +374,7 @@ fn handle_paren(
         };
     }
     let expr: Expression = get_expression(tokens, logs, index, source);
-    if let Expression::EOF = expr {
+    if matches!(expr, Expression::EOF) {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::ExpectedCloseParen),
             line_and_col: Some((tokens[*index - 1].line, tokens[*index - 1].col)),
@@ -416,13 +416,13 @@ fn get_operators(
                 vec![expr.get_type()],
                 (logs, source),
             );
-            Some(Expression::Unary {
+            return Some(Expression::Unary {
                 op,
                 expr: Box::new(expr),
                 expr_type,
             })
         } else {
-            get_operators(tokens, logs, index, precendence + 1, source)
+            return get_operators(tokens, logs, index, precendence + 1, source)
         }
     } else if operator_list[precendence].arg_count()? == 2 {
         let mut expr: Expression = get_operators(tokens, logs, index, precendence + 1, source)?;
@@ -446,7 +446,7 @@ fn get_operators(
                 return Some(expr);
             }
         }
-        Some(expr)
+        return Some(expr)
     } else {
         panic!("currently no other options for operators' argument counts.")
     }
@@ -469,7 +469,7 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
             improve_ast(child.clone(), Some(expr), logs);
         }
         Expression::Literal { token, .. } => {
-            if let TokenType::IntLiteral(0x8000_0000u32) = token.token_type {
+            if token.token_type == TokenType::IntLiteral(0x8000_0000_u32) {
                 let mut preceded_by_unary: bool = false;
                 if let Some(boxed_expr) = parent {
                     if let Expression::Unary { .. } = *boxed_expr {
