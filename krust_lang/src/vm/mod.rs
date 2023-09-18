@@ -17,6 +17,43 @@ struct RuntimeError<'a, T> {
     bytecode: &'a Vec<u8>,
 }
 
+// A trait for types that can be stored on the stack.
+trait StackType : Copy + Sized {
+    // Pushes the value to the stack.
+    fn push_to_stack(&self, stack: &mut Vec<u8>);
+
+    // Pops the value from the stack.
+    fn pop_from_stack(stack: &mut Vec<u8>) -> Option<Self>;
+}
+
+impl StackType for u8 {
+    fn push_to_stack(&self, stack: &mut Vec<u8>) {
+        stack.push(*self);
+    }
+
+    fn pop_from_stack(stack: &mut Vec<u8>) -> Option<Self> {
+        stack.pop()
+    }
+}
+
+impl StackType for i32 {
+    fn push_to_stack(&self, stack: &mut Vec<u8>) {
+        stack.append(&mut self.to_le_bytes().to_vec())
+    }
+    
+    fn pop_from_stack(stack: &mut Vec<u8>) -> Option<Self> {
+        if stack.len() < 4 {
+            None
+        } else {
+            let mut bytes: [u8; 4] = [0, 0, 0, 0];
+            for i in 0..4 {
+                bytes[4 - i - 1] = stack.pop().expect("stack was checked");
+            }
+            Some(i32::from_le_bytes(bytes))
+        }
+    }
+}
+
 /// Runs the bytecode.
 #[must_use]
 pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
@@ -148,7 +185,7 @@ fn push_byte(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &
 
 // Pops an int from the stack and adds it to the output.
 fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>) {
-    let value: Option<i32> = pop_int_from_stack(stack);
+    let value: Option<i32> = i32::pop_from_stack(stack);
     if let Some(value) = value {
         output.push(format!("{value}"));
     } else {
@@ -161,7 +198,7 @@ fn pop_int(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>) {
 
 // Pops an bool from the stack and adds it to the output.
 fn pop_bool(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>) {
-    let value: Option<u8> = stack.pop();
+    let value: Option<u8> = u8::pop_from_stack(stack);
     if let Some(value) = value {
         output.push(format!("{}", value != 0));
     } else {
@@ -174,27 +211,27 @@ fn pop_bool(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>) 
 
 // Gets the negative of an int.
 fn minus_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    unary_int(stack, logs, i32::wrapping_neg);
+    unary(stack, logs, i32::wrapping_neg);
 }
 
 // Adds two ints.
 fn add_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_int(stack, logs, i32::wrapping_add, None);
+    binary(stack, logs, i32::wrapping_add, None);
 }
 
 // Subtracts two ints.
 fn subtract_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_int(stack, logs, i32::wrapping_sub, None);
+    binary(stack, logs, i32::wrapping_sub, None);
 }
 
 // Multiplies two ints.
 fn multiply_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_int(stack, logs, i32::wrapping_mul, None);
+    binary(stack, logs, i32::wrapping_mul, None);
 }
 
 // Divides two ints. Reports an error if the second int is zero.
 fn divide_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>) {
-    binary_int(
+    binary(
         stack,
         logs,
         |a, b| if b == 0 { 0 } else { i32::wrapping_div(a, b) },
@@ -209,7 +246,7 @@ fn divide_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: 
 
 // Gets the modulo of two ints. Reports an error if the second int is zero.
 fn modulo_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>) {
-    binary_int(
+    binary(
         stack,
         logs,
         |a, b| {
@@ -230,63 +267,65 @@ fn modulo_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: 
 
 // Finds the complement of an int.
 fn complement_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    unary_int(stack, logs, |a: i32| !a);
+    unary(stack, logs, |a: i32| !a);
 }
 
 // Negates a bool.
 fn not(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    unary_byte(stack, logs, |a: u8| a ^ 1);
+    unary(stack, logs, |a: u8| a ^ 1);
 }
 
 // Left shifts an int by an int
 fn left_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_int(stack, logs, shift_int, None);
+    binary(stack, logs, shift_int, None);
 }
 
 // Left shifts an int by an int
 fn right_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_int(stack, logs, |a, b| shift_int(a, -b), None);
+    binary(stack, logs, |a: i32, b: i32| shift_int(a, -b), None);
 }
 
 // Bitwise ands two ints.
 fn and_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_int(stack, logs, |a, b| a & b, None);
+    binary(stack, logs, |a: i32, b: i32| a & b, None);
 }
 
 // Bitwise ands two bytes.
 fn and_byte(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_byte(stack, logs, |a, b| a & b, None);
+    binary(stack, logs, |a: u8, b: u8| a & b, None);
 }
 
 // Bitwise xors two ints.
 fn xor_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_int(stack, logs, |a, b| a ^ b, None);
+    binary(stack, logs, |a: i32, b: i32| a ^ b, None);
 }
 
 // Bitwise ors two bytes.
 fn xor_byte(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_byte(stack, logs, |a, b| a ^ b, None);
+    binary(stack, logs, |a: u8, b: u8| a ^ b, None);
 }
 
 // Bitwise ors two ints.
 fn or_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_int(stack, logs, |a, b| a | b, None);
+    binary(stack, logs, |a: i32, b: i32| a | b, None);
 }
 
 // Bitwise ors two bytes.
 fn or_byte(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary_byte(stack, logs, |a, b| a | b, None);
+    binary(stack, logs, |a: u8, b: u8| a | b, None);
 }
 
-// Performs a unary operation on an int.
-fn unary_int<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F)
+// Performs a unary operation.
+fn unary<F, T, TOut>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F)
 where
-    F: Fn(i32) -> i32,
+    F: Fn(T) -> TOut,
+    T: StackType,
+    TOut: StackType,
 {
-    let value: Option<i32> = pop_int_from_stack(stack);
+    let value: Option<T> = T::pop_from_stack(stack);
     if let Some(value) = value {
-        let value: i32 = func(value);
-        stack.append(&mut value.to_le_bytes().to_vec());
+        let value: TOut = func(value);
+        value.push_to_stack(stack);
     } else {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::FatalError),
@@ -295,31 +334,17 @@ where
     }
 }
 
-// Performs a unary operation on an byte.
-fn unary_byte<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F)
-where
-    F: Fn(u8) -> u8,
-{
-    let value: Option<u8> = stack.pop();
-    if let Some(value) = value {
-        let value: u8 = func(value);
-        stack.push(value);
-    } else {
-        logs.push(Log {
-            log_type: LogType::Error(ErrorType::FatalError),
-            line_and_col: None,
-        });
-    }
-}
-
-// Performs a binary operation on a pair of ints.
-fn binary_int<F>(
+// Performs a binary operation.
+fn binary<F, T1, T2, TOut>(
     stack: &mut Vec<u8>,
     logs: &mut Vec<Log>,
     func: F,
-    error: Option<RuntimeError<(i32, i32)>>,
+    error: Option<RuntimeError<(T1, T2)>>,
 ) where
-    F: Fn(i32, i32) -> i32,
+    F: Fn(T1, T2) -> TOut,
+    T1: StackType,
+    T2: StackType,
+    TOut: StackType,
 {
     let detailed_err: bool = if let Some(error) = &error {
         get_detailed_err(error.bytecode)
@@ -334,8 +359,8 @@ fn binary_int<F>(
         return;
     }
 
-    let b: Option<i32> = pop_int_from_stack(stack);
-    let a: Option<i32> = pop_int_from_stack(stack);
+    let b: Option<T2> = T2::pop_from_stack(stack);
+    let a: Option<T1> = T1::pop_from_stack(stack);
     let mut fail: bool = true;
     if let Some(a) = a {
         if let Some(b) = b {
@@ -343,51 +368,8 @@ fn binary_int<F>(
             if let Some(mut error) = error {
                 handle_error(&mut error, (a, b), detailed_err, logs)
             }
-            let c: i32 = func(a, b);
-            stack.append(&mut c.to_le_bytes().to_vec());
-        }
-    }
-    if fail {
-        logs.push(Log {
-            log_type: LogType::Error(ErrorType::FatalError),
-            line_and_col: None,
-        });
-    }
-}
-
-// Performs a binary operation on a pair of bytes.
-fn binary_byte<F>(
-    stack: &mut Vec<u8>,
-    logs: &mut Vec<Log>,
-    func: F,
-    error: Option<RuntimeError<(u8, u8)>>,
-) where
-    F: Fn(u8, u8) -> u8,
-{
-    let detailed_err: bool = if let Some(error) = &error {
-        get_detailed_err(error.bytecode)
-    } else {
-        false
-    };
-    if detailed_err && errors_stored_incorrectly(error.as_ref().expect("detailed_err is true")) {
-        logs.push(Log {
-            log_type: LogType::Error(ErrorType::FatalError),
-            line_and_col: None,
-        });
-        return;
-    }
-
-    let b: Option<u8> = stack.pop();
-    let a: Option<u8> = stack.pop();
-    let mut fail: bool = true;
-    if let Some(a) = a {
-        if let Some(b) = b {
-            fail = false;
-            if let Some(mut error) = error {
-                handle_error(&mut error, (a, b), detailed_err, logs)
-            }
-            let c: u8 = func(a, b);
-            stack.append(&mut c.to_le_bytes().to_vec());
+            let c: TOut = func(a, b);
+            c.push_to_stack(stack);
         }
     }
     if fail {
@@ -448,17 +430,4 @@ fn get_ptr_size(bytecode: &Vec<u8>) -> usize {
 // Gets whether or not runtime errors have extra info.
 fn get_detailed_err(bytecode: &Vec<u8>) -> bool {
     bytecode[1] != 0
-}
-
-// Removes an integer from the stack if possible and returns it.
-fn pop_int_from_stack(stack: &mut Vec<u8>) -> Option<i32> {
-    if stack.len() < 4 {
-        None
-    } else {
-        let mut bytes: [u8; 4] = [0, 0, 0, 0];
-        for i in 0..4 {
-            bytes[4 - i - 1] = stack.pop().expect("stack was checked");
-        }
-        Some(i32::from_le_bytes(bytes))
-    }
 }
