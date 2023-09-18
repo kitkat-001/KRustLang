@@ -7,6 +7,7 @@ use std::env::args;
 use std::fs::read_to_string;
 use std::io;
 use std::num::ParseIntError;
+use std::path::Path;
 use std::panic::catch_unwind;
 use std::str::ParseBoolError;
 use std::thread;
@@ -35,7 +36,8 @@ pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>) {
     let mut logs: Vec<Log> = Vec::new();
     let mut multiple_file_error: bool = false;
     for arg in input {
-        if arg.ends_with(".txt") && !multiple_file_error {
+        if Path::new(&arg).extension()
+        .map_or(false, |ext| ext.eq_ignore_ascii_case("txt")) && !multiple_file_error {
             if file_path.is_none() {
                 file_path = Some(arg.to_string());
             } else {
@@ -56,7 +58,7 @@ pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>) {
     }
 
     get_result(
-        file_path,
+        &file_path,
         &mut logs,
         ptr_size,
         detailed_err,
@@ -65,7 +67,7 @@ pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>) {
 }
 
 // Get the arguments from the command line.
-fn get_args<'a>() -> Result<Vec<String>, Vec<Log>> {
+fn get_args() -> Result<Vec<String>, Vec<Log>> {
     let input: thread::Result<Vec<String>> = catch_unwind(|| args().collect());
     if input.is_err() {
         return Err(vec![Log {
@@ -74,7 +76,6 @@ fn get_args<'a>() -> Result<Vec<String>, Vec<Log>> {
         }]);
     }
     let mut input: Vec<String> = input
-        .ok()
         .expect("should be valid as error handled earlier");
     if input.len() == 1 {
         return Err(vec![Log {
@@ -87,15 +88,10 @@ fn get_args<'a>() -> Result<Vec<String>, Vec<Log>> {
 }
 
 // Handle the pointer size compiler flag.
-fn handle_ptr_size(arg: &String, logs: &mut Vec<Log>, mut ptr_size: u16) -> u16 {
+fn handle_ptr_size(arg: &str, logs: &mut Vec<Log>, mut ptr_size: u16) -> u16 {
     let arg: &str = &arg[COMPILER_FLAGS[0].len()..];
-    if !arg.starts_with('=') {
-        logs.push(Log {
-            log_type: LogType::Error(ErrorType::CLIRequiresArg(COMPILER_FLAGS[0].to_string())),
-            line_and_col: None,
-        });
-    } else {
-        let parsed_arg: Result<u16, ParseIntError> = arg[1..].parse::<u16>();
+    if let Some(value) = arg.strip_prefix('=') {
+        let parsed_arg: Result<u16, ParseIntError> = value.parse::<u16>();
         if let Err(ParseIntError { .. }) = parsed_arg {
             logs.push(Log {
                 log_type: LogType::Error(ErrorType::CLIRequiresNumArg(
@@ -105,7 +101,6 @@ fn handle_ptr_size(arg: &String, logs: &mut Vec<Log>, mut ptr_size: u16) -> u16 
             });
         } else {
             ptr_size = parsed_arg
-                .ok()
                 .expect("should be valid as error handled earlier.");
         }
         if ptr_size >= 2048 {
@@ -126,20 +121,20 @@ fn handle_ptr_size(arg: &String, logs: &mut Vec<Log>, mut ptr_size: u16) -> u16 
                 line_and_col: None,
             });
         }
+    } else {
+        logs.push(Log {
+            log_type: LogType::Error(ErrorType::CLIRequiresArg(COMPILER_FLAGS[0].to_string())),
+            line_and_col: None,
+        });
     }
     ptr_size
 }
 
 // Handle the detail compiler flag.
-fn handle_detailed_err(arg: &String, logs: &mut Vec<Log>) -> bool {
+fn handle_detailed_err(arg: &str, logs: &mut Vec<Log>) -> bool {
     let arg: &str = &arg[COMPILER_FLAGS[1].len()..];
-    if !arg.starts_with('=') {
-        logs.push(Log {
-            log_type: LogType::Error(ErrorType::CLIRequiresArg(COMPILER_FLAGS[1].to_string())),
-            line_and_col: None,
-        });
-    } else {
-        let parsed_arg: Result<bool, ParseBoolError> = arg[1..].parse::<bool>();
+    if let Some(value) = arg.strip_prefix('=') {
+        let parsed_arg: Result<bool, ParseBoolError> = value.parse::<bool>();
         if let Err(ParseBoolError { .. }) = parsed_arg {
             logs.push(Log {
                 log_type: LogType::Error(ErrorType::CLIRequiresBoolArg(
@@ -149,9 +144,13 @@ fn handle_detailed_err(arg: &String, logs: &mut Vec<Log>) -> bool {
             });
         } else {
             return parsed_arg
-                .ok()
                 .expect("should be valid as error handled earlier.");
         }
+    } else {
+        logs.push(Log {
+            log_type: LogType::Error(ErrorType::CLIRequiresArg(COMPILER_FLAGS[1].to_string())),
+            line_and_col: None,
+        });
     }
     true
 }
@@ -161,7 +160,7 @@ fn handle_unrecognized_flag(arg: &String, logs: &mut Vec<Log>) {
     let index: Option<usize> = arg.find('=');
     let mut arg_substr: &str = arg;
     if let Some(i) = index {
-        arg_substr = &arg[..i]
+        arg_substr = &arg[..i];
     }
     logs.push(Log {
         log_type: LogType::Error(ErrorType::CLIUnrecognizedArg(arg_substr.to_string())),
@@ -171,18 +170,18 @@ fn handle_unrecognized_flag(arg: &String, logs: &mut Vec<Log>) {
 
 // Gets the CLI info.
 fn get_result(
-    file_path: Option<String>,
+    file_path: &Option<String>,
     logs: &mut Vec<Log>,
     ptr_size: u16,
     detailed_err: bool,
     multiple_file_error: bool,
 ) -> (Option<CLIInfo>, Vec<Log>) {
-    let file_size: usize = get_file_size(&file_path, logs, multiple_file_error);
+    let file_size: usize = get_file_size(file_path, logs, multiple_file_error);
 
-    if !logs.is_empty() {
-        (None, logs.clone())
+    if logs.is_empty() {
+        handle_compiler_flag_issues(file_path, logs, ptr_size, detailed_err, file_size)
     } else {
-        handle_compiler_flag_issues(&file_path, logs, ptr_size, detailed_err, file_size)
+        (None, logs.clone())
     }
 }
 
@@ -195,16 +194,13 @@ fn get_file_size(
     let mut file_size: usize = 0;
     if let Some(ref path) = file_path {
         let result: io::Result<String> = read_to_string(path);
-        if result.is_err() {
+        if let Ok(file_text) = result {
+            file_size = file_text.len();
+        } else {
             logs.push(Log {
                 log_type: LogType::Error(ErrorType::CLICantOpenFile(path.clone())),
                 line_and_col: None,
             });
-        } else {
-            file_size = result
-                .ok()
-                .expect("should be valid as error handled above")
-                .len();
         }
     } else if !multiple_file_error {
         logs.push(Log {

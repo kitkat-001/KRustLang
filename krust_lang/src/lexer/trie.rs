@@ -76,7 +76,7 @@ impl<TKey: PartialEq + Clone, TValue: Clone> Node<TKey, TValue> {
 
 impl<TValue: Clone> Node<char, TValue> {
     /// Returns the value corresponding with the key if found. Uses a String as the key.
-    pub fn search_with_string(&self, key: &String) -> Option<TValue> {
+    pub fn search_with_string(&self, key: &str) -> Option<TValue> {
         self.search(&string_to_vec(key))
     }
 
@@ -91,7 +91,7 @@ impl<TValue: Clone> Node<char, TValue> {
 }
 
 // Converts a string to a list of characters..
-fn string_to_vec(value: &String) -> Vec<char> {
+fn string_to_vec(value: &str) -> Vec<char> {
     let mut out: Vec<char> = Vec::new();
     for c in value.chars().by_ref() {
         out.push(c);

@@ -38,7 +38,7 @@ impl StackType for u8 {
 
 impl StackType for i32 {
     fn push_to_stack(&self, stack: &mut Vec<u8>) {
-        stack.append(&mut self.to_le_bytes().to_vec())
+        stack.append(&mut self.to_le_bytes().to_vec());
     }
 
     fn pop_from_stack(stack: &mut Vec<u8>) -> Option<Self> {
@@ -62,8 +62,7 @@ pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
 
     let possible_error = handle_errors(bytecode, &mut output, &mut logs);
     let possible_error: Option<(&Vec<String>, &Vec<Log>)> = possible_error.0;
-    if possible_error.is_some() {
-        let error: (&Vec<String>, &Vec<Log>) = possible_error.expect("if statement");
+    if let Some(error) = possible_error {
         return (error.0.clone(), error.1.clone());
     }
 
@@ -73,19 +72,17 @@ pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
         let curr_op: Option<OpCode> = FromPrimitive::from_u8(bytecode[index]);
         index += 1;
 
-        match curr_op {
-            Some(op) => {
-                if match_op(op, bytecode, &mut stack, &mut index, &mut output, &mut logs) {
-                    return (output, logs);
-                }
-            }
-            None => {
-                logs.push(Log {
-                    log_type: LogType::Error(ErrorType::FatalError),
-                    line_and_col: None,
-                });
+        if let Some(op) = curr_op {
+            if match_op(op, bytecode, &mut stack, &mut index, &mut output, &mut logs) {
                 return (output, logs);
             }
+        }
+        else {
+            logs.push(Log {
+                log_type: LogType::Error(ErrorType::FatalError),
+                line_and_col: None,
+            });
+            return (output, logs);
         }
     }
     (output, logs)
@@ -241,7 +238,7 @@ fn divide_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: 
             index,
             bytecode,
         }),
-    )
+    );
 }
 
 // Gets the modulo of two ints. Reports an error if the second int is zero.
@@ -262,7 +259,7 @@ fn modulo_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: 
             index,
             bytecode,
         }),
-    )
+    );
 }
 
 // Finds the complement of an int.
@@ -366,7 +363,7 @@ fn binary<F, T1, T2, TOut>(
         if let Some(b) = b {
             fail = false;
             if let Some(mut error) = error {
-                handle_error(&mut error, (a, b), detailed_err, logs)
+                handle_error(&mut error, (a, b), detailed_err, logs);
             }
             let c: TOut = func(a, b);
             c.push_to_stack(stack);
@@ -396,14 +393,14 @@ fn handle_error<T>(error: &mut RuntimeError<T>, value: T, detailed_err: bool, lo
     if condition(value) {
         if detailed_err {
             let mut bytes: [u8; (usize::BITS / 8) as usize] = [0; (usize::BITS / 8) as usize];
-            for i in 0..ptr_size {
-                bytes[i] = bytecode[*index];
+            for byte in bytes.iter_mut().take(ptr_size) {
+                *byte = bytecode[*index];
                 *index += 1;
             }
             let line: usize = usize::from_le_bytes(bytes);
             bytes = [0; (usize::BITS / 8) as usize];
-            for i in 0..ptr_size {
-                bytes[i] = bytecode[*index];
+            for byte in bytes.iter_mut().take(ptr_size) {
+                *byte = bytecode[*index];
                 *index += 1;
             }
             let col: usize = usize::from_le_bytes(bytes);
@@ -423,11 +420,11 @@ fn handle_error<T>(error: &mut RuntimeError<T>, value: T, detailed_err: bool, lo
 }
 
 // Gets the pointer size.
-fn get_ptr_size(bytecode: &Vec<u8>) -> usize {
+fn get_ptr_size(bytecode: &[u8]) -> usize {
     bytecode[0] as usize
 }
 
 // Gets whether or not runtime errors have extra info.
-fn get_detailed_err(bytecode: &Vec<u8>) -> bool {
+fn get_detailed_err(bytecode: &[u8]) -> bool {
     bytecode[1] != 0
 }

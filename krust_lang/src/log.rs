@@ -120,7 +120,7 @@ impl Display for Log {
                 ErrorType::InvalidArgsForOperator(op, types)
                     => format!("the operator \"{op}\" has no definition over the type{} {}.", 
                         if types.len() == 1 {""} else {"s"},
-                        format_vec_string(types).unwrap_or_default()),
+                        format_vec_string(&types).unwrap_or_default()),
 
                 ErrorType::ExpectedEOF => "expected end of file.".to_string(),
                 ErrorType::UnexpectedEOF => "unexpected end of file.".to_string(),
@@ -188,7 +188,7 @@ pub fn all_to_string(logs: &Vec<Log>) -> Vec<String> {
 }
 
 // Formats a vector of strings into a list with commas and "and".
-fn format_vec_string(vec: Vec<String>) -> Option<String> {
+fn format_vec_string(vec: &[String]) -> Option<String> {
     match vec.len() {
         0 => None,
         1 => Some(vec[0].clone()),
@@ -200,9 +200,9 @@ fn format_vec_string(vec: Vec<String>) -> Option<String> {
         }),
         _ => Some({
             let mut value: String = vec[0].clone();
-            for i in 1..vec.len() - 1 {
+            for item in vec.iter().take(vec.len() - 1).skip(1) {
                 value.push_str(", ");
-                value.push_str(&vec[i]);
+                value.push_str(item);
             }
             value.push_str(", and ");
             value.push_str(&vec[vec.len() - 1]);

@@ -8,7 +8,7 @@ use parser::{Expression, ParserOutput, Type};
 use num_derive::FromPrimitive;
 
 /// The `OpCode` used in the bytecode.
-#[derive(FromPrimitive)]
+#[derive(FromPrimitive, Clone, Copy)]
 pub enum OpCode {
     PushInt,
     PushByte,
@@ -90,9 +90,9 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8> {
             handle_binary(
                 &mut bytecode,
                 ptr_size,
-                left,
+                *left,
                 op,
-                right,
+                *right,
                 expr_type.expect("any \"None\" should have a parsing error"),
             );
         }
@@ -122,13 +122,13 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8> {
 fn handle_binary(
     bytecode: &mut Vec<u8>,
     ptr_size: u8,
-    left: Box<Expression>,
+    left: Expression,
     op: Token,
-    right: Box<Expression>,
+    right: Expression,
     expr_type: Type,
 ) {
-    bytecode.append(&mut generate_bytecode(*left, ptr_size));
-    bytecode.append(&mut generate_bytecode(*right, ptr_size));
+    bytecode.append(&mut generate_bytecode(left, ptr_size));
+    bytecode.append(&mut generate_bytecode(right, ptr_size));
     match op.token_type {
         TokenType::Plus => {
             bytecode.push(OpCode::AddInt as u8);

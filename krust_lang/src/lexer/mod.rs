@@ -82,7 +82,6 @@ pub fn lex(file_path: &str) -> LexerOutput {
     // Prepare fields for output.
     let file_text: Result<String, Error> = read_to_string(file_path);
     let file_text: String = file_text
-        .ok()
         .expect("should be valid as error handled in command line reader");
     let mut tokens: Vec<Token> = Vec::new();
     let mut logs: Vec<Log> = Vec::new();
@@ -109,8 +108,8 @@ pub fn lex(file_path: &str) -> LexerOutput {
             &mut col,
             &trie,
         );
-        if output.is_some() {
-            return output.expect("checked by if statement");
+        if let Some(out) = output {
+            return out;
         }
     }
 }
@@ -182,7 +181,7 @@ fn get_token(
 
 // Handles white space.
 fn handle_white_space(
-    file_text: &String,
+    file_text: &str,
     c: char,
     line: &mut usize,
     col: &mut usize,
@@ -203,7 +202,7 @@ fn handle_white_space(
 
 // Handles shift tokens.
 fn handle_shift(
-    file_text: &String,
+    file_text: &str,
     tokens: &mut Vec<Token>,
     line: &mut usize,
     col: &mut usize,
@@ -246,7 +245,7 @@ fn handle_shift(
 
 // Handles numerical tokens.
 fn handle_number(
-    file_text: &String,
+    file_text: &str,
     tokens: &mut Vec<Token>,
     logs: &mut Vec<Log>,
     line: &mut usize,
@@ -254,7 +253,7 @@ fn handle_number(
     index: &mut usize,
 ) {
     let mut length: usize = 1;
-    while is_digit_option(&file_text.chars().nth(*index + length)) {
+    while is_digit_option(file_text.chars().nth(*index + length)) {
         length += 1;
     }
     let int_literal: Result<u32, ParseIntError> =
@@ -296,16 +295,16 @@ fn get_int_literal_token_type(int_literal: Result<u32, ParseIntError>) -> TokenT
 }
 
 // Returns whether or not the character stored in the option is a digit.
-fn is_digit_option(c_option: &Option<char>) -> bool {
+fn is_digit_option(c_option: Option<char>) -> bool {
     match c_option {
         None => false,
-        Some(c) => (&'0'..=&'9').contains(&c),
+        Some(c) => c.is_ascii_digit(),
     }
 }
 
 // Handles keywords and unexpected characters/tokens.
 fn handle_other(
-    file_text: &String,
+    file_text: &str,
     tokens: &mut Vec<Token>,
     logs: &mut Vec<Log>,
     line: &mut usize,
@@ -314,7 +313,7 @@ fn handle_other(
     trie: &Node<char, TokenType>,
 ) {
     let mut length: usize = 1;
-    while !is_token_separator(&file_text.chars().nth(*index + length)) {
+    while !is_token_separator(file_text.chars().nth(*index + length)) {
         length += 1;
     }
     let token_string: String = file_text[*index..*index + length].to_string();
@@ -344,9 +343,9 @@ fn handle_other(
 
 // Returns whether or not the character stored in the option is a token seperator. <br/>
 // Token seperators include whitespace, valid brackets, and the end of the file.
-fn is_token_separator(c_option: &Option<char>) -> bool {
+fn is_token_separator(c_option: Option<char>) -> bool {
     match c_option {
         None => true,
-        Some(c) => c == &' ' || c == &'\t' || c == &'\n' || c == &'\r' || c == &'(' || c == &')',
+        Some(c) => c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '(' || c == ')',
     }
 }

@@ -31,11 +31,11 @@ fn main() {
                 .to_string()
                 + "exe";
             let result: Result<(), Error> = create_compiled_exe(&bytecode, &file_path);
-            if let Err(_) = result {
+            if result.is_err() {
                 logs.push(Log {
                     log_type: LogType::Error(ErrorType::FatalError),
                     line_and_col: None,
-                })
+                });
             }
         } else {
             logs.push(Log {
@@ -50,14 +50,14 @@ fn main() {
 }
 
 // Produces bytecode from the file.
-fn generate_bytecode(file_path: &String, cli_args: [u8; 2]) -> CompilerOutput {
+fn generate_bytecode(file_path: &str, cli_args: [u8; 2]) -> CompilerOutput {
     let lex_output: LexerOutput = lex(file_path);
     let parse_output: ParserOutput = parse(lex_output);
     compile(parse_output, cli_args)
 }
 
 // Create the exe.
-fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &String) -> Result<(), Error> {
+fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &str) -> Result<(), Error> {
     let mut file: File = File::create(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/",
@@ -74,7 +74,7 @@ fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &String) -> Result<(), Err
             .expect("should have a string value")
             .to_string()
             + "/"
-            + file_path.as_str(),
+            + file_path,
     )?;
     let mut file: File = File::create(concat!(
         env!("CARGO_MANIFEST_DIR"),

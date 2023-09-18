@@ -57,21 +57,17 @@ pub struct ParserOutput {
 impl Expression {
     // Returns whether or not this expression represents the end of the file.
     fn is_eof(&self) -> bool {
-        if matches!(*self, Self::EOF) {
-            true
-        } else {
-            false
-        }
+        matches!(*self, Self::EOF)
     }
 
     // Returns the type of the expression
     #[must_use]
     pub fn get_type(&self) -> Option<Type> {
         match &self {
-            Self::Binary { expr_type, .. } => *expr_type,
-            Self::Grouping { expr_type, .. } => *expr_type,
-            Self::Literal { expr_type, .. } => *expr_type,
-            Self::Unary { expr_type, .. } => *expr_type,
+            Self::Binary { expr_type, .. }
+                | Self::Grouping { expr_type, .. }
+                | Self::Literal { expr_type, .. }
+                | Self:: Unary { expr_type, .. } => *expr_type,
 
             _ => None,
         }
@@ -208,18 +204,18 @@ impl OpList {
 
     // The number of arguments
     fn arg_count(&self) -> Option<usize> {
-        if !self.list.is_empty() {
-            Some(self.list[0].input.len())
-        } else {
+        if self.list.is_empty() {
             None
+        } else {
+            Some(self.list[0].input.len())
         }
     }
 
     // Returns whether or not one of the operators is associated a specific token.
-    fn contains(&self, token: &TokenType) -> bool {
+    fn contains(&self, token: TokenType) -> bool {
         let list: Vec<Operator> = self.list.clone();
         for op in list {
-            if op.token == *token {
+            if op.token == token {
                 return true;
             }
         }
@@ -227,11 +223,11 @@ impl OpList {
     }
 
     // Returns a list of valid input and output types for this
-    fn valid_arg_types(&self, token: &TokenType) -> Vec<(Vec<Type>, Type)> {
+    fn valid_arg_types(&self, token: TokenType) -> Vec<(Vec<Type>, Type)> {
         let list: Vec<Operator> = self.list.clone();
         let mut valid_types: Vec<(Vec<Type>, Type)> = Vec::new();
         for op in list {
-            if op.token == *token {
+            if op.token == token {
                 valid_types.push((op.input, op.output));
             }
         }
@@ -243,7 +239,7 @@ impl OpList {
         &self,
         token: &Token,
         input: Vec<Option<Type>>,
-        log_info: (&mut Vec<Log>, &String),
+        log_info: &mut (&mut Vec<Log>, &String),
     ) -> Option<Type> {
         if input.contains(&None) {
             return None;
@@ -257,7 +253,7 @@ impl OpList {
             temp
         };
 
-        let valid_types: Vec<(Vec<Type>, Type)> = self.valid_arg_types(&token.token_type);
+        let valid_types: Vec<(Vec<Type>, Type)> = self.valid_arg_types(token.token_type);
         let mut valid_inputs: Vec<Vec<Type>> = Vec::new();
         for value in valid_types.clone() {
             valid_inputs.push(value.clone().0);
@@ -332,11 +328,7 @@ fn get_primary(
             token,
             expr_type: Some(Type::Int),
         },
-        TokenType::True => Expression::Literal {
-            token,
-            expr_type: Some(Type::Bool),
-        },
-        TokenType::False => Expression::Literal {
+        TokenType::True | TokenType::False => Expression::Literal {
             token,
             expr_type: Some(Type::Bool),
         },
@@ -414,26 +406,25 @@ fn get_operators(
     if precendence >= operator_list.len() {
         Some(get_primary(tokens, logs, index, source))
     } else if operator_list[precendence].arg_count()? == 1 {
-        if operator_list[precendence].contains(&tokens[*index].token_type) {
+        if operator_list[precendence].contains(tokens[*index].token_type) {
             let op: Token = tokens[*index];
             *index += 1;
             let expr: Expression = get_operators(tokens, logs, index, precendence, source)?;
             let expr_type: Option<Type> = operator_list[precendence].get_output_type(
                 &op,
                 vec![expr.get_type()],
-                (logs, source),
+                &mut (logs, source),
             );
             return Some(Expression::Unary {
                 op,
                 expr: Box::new(expr),
                 expr_type,
             });
-        } else {
-            return get_operators(tokens, logs, index, precendence + 1, source);
         }
+        return get_operators(tokens, logs, index, precendence + 1, source);
     } else if operator_list[precendence].arg_count()? == 2 {
         let mut expr: Expression = get_operators(tokens, logs, index, precendence + 1, source)?;
-        while !expr.is_eof() && operator_list[precendence].contains(&tokens[*index].token_type) {
+        while !expr.is_eof() && operator_list[precendence].contains(tokens[*index].token_type) {
             let op: Token = tokens[*index];
             *index += 1;
             let right: Expression = get_operators(tokens, logs, index, precendence + 1, source)?;
@@ -446,7 +437,7 @@ fn get_operators(
                 expr_type: operator_list[precendence].get_output_type(
                     &op,
                     type_list,
-                    (logs, source),
+                    &mut (logs, source),
                 ),
             };
             if is_eof {
@@ -472,6 +463,8 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
         }
         Expression::Grouping {
             expr: ref child, ..
+        } | Expression::Unary {
+            expr: ref child, ..
         } => {
             improve_ast(child.clone(), Some(expr), logs);
         }
@@ -490,11 +483,6 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
                     });
                 }
             }
-        }
-        Expression::Unary {
-            expr: ref child, ..
-        } => {
-            improve_ast(child.clone(), Some(expr), logs);
         }
         _ => {}
     }
