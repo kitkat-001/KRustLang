@@ -20,7 +20,8 @@ pub struct CLIInfo {
 const COMPILER_FLAGS: [&str; 2] = ["-pointer_size", "-detailed_errors"];
 
 /// Get file name and compiler flags from the command line.
-#[must_use] pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>) {
+#[must_use]
+pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>) {
     let input: Result<Vec<String>, Vec<Log>> = get_args();
     if input.is_err() {
         return (None, input.expect_err("checked by if statement"));

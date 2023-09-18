@@ -24,6 +24,7 @@ pub enum OpCode {
     ModuloInt,
 
     ComplementInt,
+    Not,
 
     LeftShiftInt,
     RightShiftInt,
@@ -44,7 +45,8 @@ pub struct CompilerOutput {
 }
 
 /// Compiles to bytecode.
-#[must_use] pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput {
+#[must_use]
+pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput {
     let mut bytecode: Option<Vec<u8>> = None;
     let mut logs: Vec<Log> = parser_output.logs.clone();
 
@@ -104,12 +106,12 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8> {
             op, expr: child, ..
         } => {
             bytecode.append(&mut generate_bytecode(*child, ptr_size));
-            if op.token_type == TokenType::Minus {
-                bytecode.push(OpCode::MinusInt as u8);
-            }
-            if op.token_type == TokenType::Tilde {
-                bytecode.push(OpCode::ComplementInt as u8);
-            }
+            bytecode.push(match op.token_type {
+                TokenType::Minus => OpCode::MinusInt,
+                TokenType::Tilde => OpCode::ComplementInt,
+                TokenType::ExclamationMark => OpCode::Not,
+                _ => panic!("all unary operators should have been accounted for"),
+            } as u8);
         }
         _ => panic!("all expression types should have been accounted for"),
     }

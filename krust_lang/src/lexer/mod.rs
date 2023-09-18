@@ -34,6 +34,7 @@ pub enum TokenType {
     Slash,
     Percent,
     Tilde,
+    ExclamationMark,
     Ampersand,
     Caret,
     Bar,
@@ -58,7 +59,8 @@ pub enum TokenType {
 
 impl Token {
     /// Converts the token to a string given the text it came from.
-    #[must_use] pub fn to_string<'a>(&'a self, source: &'a str) -> String {
+    #[must_use]
+    pub fn to_string<'a>(&'a self, source: &'a str) -> String {
         if self.token_type == TokenType::EOF {
             "EOF".to_string()
         } else {
@@ -75,7 +77,8 @@ pub struct LexerOutput {
 }
 
 /// Lexes the file given in the command line.
-#[must_use] pub fn lex(file_path: &str) -> LexerOutput {
+#[must_use]
+pub fn lex(file_path: &str) -> LexerOutput {
     // Prepare fields for output.
     let file_text: Result<String, Error> = read_to_string(file_path);
     let file_text: String = file_text
@@ -131,6 +134,7 @@ fn get_token(
         ('%', TokenType::Percent),
         ('~', TokenType::Tilde),
         ('&', TokenType::Ampersand),
+        ('!', TokenType::ExclamationMark),
         ('^', TokenType::Caret),
         ('|', TokenType::Bar),
         ('(', TokenType::LeftParen),

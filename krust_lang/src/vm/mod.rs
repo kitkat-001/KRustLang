@@ -18,7 +18,8 @@ struct RuntimeError<'a, T> {
 }
 
 /// Runs the bytecode.
-#[must_use] pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
+#[must_use]
+pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
     let mut output: Vec<String> = Vec::new();
     let mut logs: Vec<Log> = Vec::new();
 
@@ -106,6 +107,7 @@ fn match_op(
         OpCode::DivideInt => divide_int(bytecode, stack, index, logs),
         OpCode::ModuloInt => modulo_int(bytecode, stack, index, logs),
         OpCode::ComplementInt => complement_int(stack, logs),
+        OpCode::Not => not(stack, logs),
         OpCode::LeftShiftInt => left_shift_int(stack, logs),
         OpCode::RightShiftInt => right_shift_int(stack, logs),
         OpCode::AndInt => and_int(stack, logs),
@@ -231,6 +233,11 @@ fn complement_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
     unary_int(stack, logs, |a: i32| !a);
 }
 
+// Negates a bool.
+fn not(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
+    unary_byte(stack, logs, |a: u8| a ^ 1);
+}
+
 // Left shifts an int by an int
 fn left_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
     binary_int(stack, logs, shift_int, None);
@@ -280,6 +287,23 @@ where
     if let Some(value) = value {
         let value: i32 = func(value);
         stack.append(&mut value.to_le_bytes().to_vec());
+    } else {
+        logs.push(Log {
+            log_type: LogType::Error(ErrorType::FatalError),
+            line_and_col: None,
+        });
+    }
+}
+
+// Performs a unary operation on an byte.
+fn unary_byte<F>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F)
+where
+    F: Fn(u8) -> u8,
+{
+    let value: Option<u8> = stack.pop();
+    if let Some(value) = value {
+        let value: u8 = func(value);
+        stack.push(value);
     } else {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::FatalError),

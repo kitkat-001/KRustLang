@@ -65,7 +65,8 @@ impl Expression {
     }
 
     // Returns the type of the expression
-    #[must_use] pub fn get_type(&self) -> Option<Type> {
+    #[must_use]
+    pub fn get_type(&self) -> Option<Type> {
         match &self {
             Self::Binary { expr_type, .. } => *expr_type,
             Self::Grouping { expr_type, .. } => *expr_type,
@@ -195,6 +196,11 @@ impl OpList {
                         input: vec![Type::Int],
                         output: Type::Int,
                     },
+                    Operator {
+                        token: TokenType::ExclamationMark,
+                        input: vec![Type::Bool],
+                        output: Type::Bool,
+                    },
                 ],
             },
         ]
@@ -282,7 +288,8 @@ impl OpList {
 }
 
 /// Parse the output from the lexer.
-#[must_use] pub fn parse(lex_output: LexerOutput) -> ParserOutput {
+#[must_use]
+pub fn parse(lex_output: LexerOutput) -> ParserOutput {
     let mut logs: Vec<Log> = lex_output.logs.clone();
     let mut index: usize = 0;
     let tokens: Vec<Token> = lex_output.tokens;
@@ -420,9 +427,9 @@ fn get_operators(
                 op,
                 expr: Box::new(expr),
                 expr_type,
-            })
+            });
         } else {
-            return get_operators(tokens, logs, index, precendence + 1, source)
+            return get_operators(tokens, logs, index, precendence + 1, source);
         }
     } else if operator_list[precendence].arg_count()? == 2 {
         let mut expr: Expression = get_operators(tokens, logs, index, precendence + 1, source)?;
@@ -446,7 +453,7 @@ fn get_operators(
                 return Some(expr);
             }
         }
-        return Some(expr)
+        return Some(expr);
     } else {
         panic!("currently no other options for operators' argument counts.")
     }

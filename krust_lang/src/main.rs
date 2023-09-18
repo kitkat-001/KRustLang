@@ -54,7 +54,7 @@ fn run(file_path: String, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
         });
     }
 
-    return (output, logs)
+    (output, logs)
 }
 
 /// The module for running tests.
@@ -192,6 +192,33 @@ mod tests {
         )
     }
 
+    #[test]
+    fn bad_type_unary() {
+        test_code(
+            "bad_type_unary",
+            "!1",
+            Vec::new(),
+            vec![
+                "error (line 1:1): the operator \"!\" has no definition over the type \"int\"."
+                    .to_string(),
+                "error: could not compile due to errors.".to_string(),
+            ],
+        )
+    }
+
+    #[test]
+    fn bad_types_binary() {
+        test_code(
+            "bad_types_binary",
+            "1+true",
+            Vec::new(),
+            vec![
+                "error (line 1:2): the operator \"+\" has no definition over the types \"int\" and \"bool\".".to_string(),
+                "error: could not compile due to errors.".to_string(),
+            ],
+        )
+    }
+
     proptest! {
         #[test]
         fn random_int(value in proptest::num::i32::ANY)
@@ -301,6 +328,17 @@ mod tests {
             test_code(
                 "complement_int",
                 format!("~{a}").as_str(),
+                vec![format!("{}", !a)],
+                Vec::new()
+            );
+        }
+
+        #[test]
+        fn not(a in proptest::bool::ANY)
+        {
+            test_code(
+                "not",
+                format!("!{a}").as_str(),
                 vec![format!("{}", !a)],
                 Vec::new()
             );
