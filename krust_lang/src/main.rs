@@ -1,8 +1,5 @@
 #![deny(clippy::all)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::restriction)]
-#![warn(clippy::nursery)]
-#![warn(clippy::cargo)]
+#![deny(clippy::pedantic)]
 
 use krust::cli_reader::{read_command_line, CLIInfo};
 use krust::compiler::{compile, CompilerOutput};
@@ -19,7 +16,7 @@ fn main() {
 
     if cli_output.0.is_some() {
         let cli_output: CLIInfo = cli_output.0.expect("checked by if statement");
-        let output: (Vec<String>, Vec<Log>) = run(cli_output.file_path, cli_output.cli_args);
+        let output: (Vec<String>, Vec<Log>) = run(cli_output.file_path.as_str(), cli_output.cli_args);
         for string in output.0 {
             println!("{string}");
         }
@@ -31,8 +28,8 @@ fn main() {
 
 // Runs the code in the file.
 // TODO: Don't save all the printing till the end, instead print when printing should happen.
-fn run(file_path: String, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
-    let lex_output: LexerOutput = lex(&file_path);
+fn run(file_path: &str, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
+    let lex_output: LexerOutput = lex(file_path);
     let parse_output: ParserOutput = parse(lex_output);
     let compiler_output: CompilerOutput = compile(parse_output, cli_args);
     let mut output: Vec<String> = Vec::new();
@@ -74,7 +71,7 @@ mod tests {
         let file_path: String = format!("tests/{test_name}.txt");
         fs::write(&file_path, code).expect("file will be created if it doesn't exist");
         let out_err = run(
-            file_path,
+            file_path.as_str(),
             [
                 (usize::BITS / 8)
                     .try_into()
@@ -90,12 +87,12 @@ mod tests {
     fn above_max_int() {
         test_code(
             "above_max_int",
-            format!("{}", 0x8000_0001_u32).as_str(),
+            format!("{}", 0x8000_0001u32).as_str(),
             Vec::new(),
             vec![
                 format!(
                     "error (line 1:1): int literal \"{}\" must be at most {}.",
-                    0x8000_0001_u32, 0x8000_0000_u32
+                    0x8000_0001u32, 0x8000_0000u32
                 ),
                 "error: could not compile due to errors.".to_string(),
             ],
@@ -106,10 +103,10 @@ mod tests {
     fn max_int_no_sign() {
         test_code(
             "max_int_no_sign", 
-            format!("{}", 0x8000_0000_u32).as_str(), 
+            format!("{}", 0x8000_0000u32).as_str(), 
             Vec::new(), 
             vec![
-                format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000_u32),
+                format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000u32),
                 "error: could not compile due to errors.".to_string()
             ]
         );
@@ -119,8 +116,8 @@ mod tests {
     fn max_pos_int() {
         test_code(
             "max_int_pos",
-            format!("{}", 0x8000_0000_u32 - 1).as_str(),
-            vec![format!("{}", 0x8000_0000_u32 - 1)],
+            format!("{}", 0x8000_0000u32 - 1).as_str(),
+            vec![format!("{}", 0x8000_0000u32 - 1)],
             Vec::new(),
         );
     }
@@ -129,12 +126,12 @@ mod tests {
     fn below_min_int() {
         test_code(
             "below_min_int",
-            format!("-{}", 0x8000_0001_u32).as_str(),
+            format!("-{}", 0x8000_0001u32).as_str(),
             Vec::new(),
             vec![
                 format!(
                     "error (line 1:2): int literal \"{}\" must be at most {}.",
-                    0x8000_0001_u32, 0x8000_0000_u32
+                    0x8000_0001u32, 0x8000_0000u32
                 ),
                 "error: could not compile due to errors.".to_string(),
             ],
@@ -145,8 +142,8 @@ mod tests {
     fn min_int() {
         test_code(
             "min_int",
-            format!("-{}", 0x8000_0000_u32).as_str(),
-            vec![format!("-{}", 0x8000_0000_u32)],
+            format!("-{}", 0x8000_0000u32).as_str(),
+            vec![format!("-{}", 0x8000_0000u32)],
             Vec::new(),
         );
     }
@@ -270,7 +267,7 @@ mod tests {
             b in proptest::num::i32::ANY.prop_filter
             (
                 "Division by zero is invalid",
-                |b| return *b != 0
+                |b| *b != 0
             )
         )
         {
@@ -299,7 +296,7 @@ mod tests {
             b in proptest::num::i32::ANY.prop_filter
             (
                 "Modulo by zero is invalid",
-                |b| return *b != 0
+                |b| *b != 0
             )
         )
         {

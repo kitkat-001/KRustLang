@@ -86,7 +86,7 @@ impl<TValue: Clone> Node<char, TValue> {
         for pair in values {
             new_vec.push((string_to_vec(&pair.0), pair.1));
         }
-        return Self::new(new_vec)
+        Self::new(new_vec)
     }
 }
 

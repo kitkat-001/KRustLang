@@ -116,7 +116,7 @@ impl Display for Log {
                 ErrorType::UnrecognizedToken(token) 
                     => format!("unrecognized token \"{token}\"."),
                 ErrorType::UnrepresentableIntegerLiteral(token) 
-                    => format!("int literal \"{token}\" must be at most {}.", 0x_8000_0000u32),
+                    => format!("int literal \"{token}\" must be at most {}.", 0x_8000_0000_u32),
                 ErrorType::InvalidArgsForOperator(op, types)
                     => format!("the operator \"{op}\" has no definition over the type{} {}.", 
                         if types.len() == 1 {""} else {"s"},
@@ -128,7 +128,7 @@ impl Display for Log {
                 ErrorType::ExpectedExpressionInParens => "expected expression within parentheses.".to_string(),
                 ErrorType::ExpectedCloseParen => "expected \')\' following \'(\'.".to_string(),
                 ErrorType::UnnegatedMinimumIntegerLiteral
-                    => format!("the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000u32),
+                    => format!("the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000_u32),
 
                 ErrorType::ExcessiveBytecode => "could not compile as bytecode was too large.".to_string(),
 

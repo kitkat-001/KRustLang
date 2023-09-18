@@ -288,7 +288,7 @@ fn get_int_literal_token_type(int_literal: Result<u32, ParseIntError>) -> TokenT
     let value: u32 = int_literal.expect("should be valid as error handled earlier.");
 
     // 0x8000_0000 is the largest possible absolute value of an i32.
-    if value > 0x8000_0000u32 {
+    if value > 0x8000_0000_u32 {
         TokenType::Error
     } else {
         TokenType::IntLiteral(value)

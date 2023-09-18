@@ -18,7 +18,7 @@ struct RuntimeError<'a, T> {
 }
 
 // A trait for types that can be stored on the stack.
-trait StackType : Copy + Sized {
+trait StackType: Copy + Sized {
     // Pushes the value to the stack.
     fn push_to_stack(&self, stack: &mut Vec<u8>);
 
@@ -40,7 +40,7 @@ impl StackType for i32 {
     fn push_to_stack(&self, stack: &mut Vec<u8>) {
         stack.append(&mut self.to_le_bytes().to_vec())
     }
-    
+
     fn pop_from_stack(stack: &mut Vec<u8>) -> Option<Self> {
         if stack.len() < 4 {
             None
@@ -49,7 +49,7 @@ impl StackType for i32 {
             for i in 0..4 {
                 bytes[4 - i - 1] = stack.pop().expect("stack was checked");
             }
-            Some(i32::from_le_bytes(bytes))
+            Some(Self::from_le_bytes(bytes))
         }
     }
 }

@@ -94,7 +94,7 @@ struct OpList {
 impl OpList {
     // Gets the default list of operators used by the language.
     fn get_op_lists() -> [Self; 7] {
-        return [
+        [
             Self {
                 list: vec![
                     Operator {
@@ -476,7 +476,7 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
             improve_ast(child.clone(), Some(expr), logs);
         }
         Expression::Literal { token, .. } => {
-            if token.token_type == TokenType::IntLiteral(0x8000_0000_u32) {
+            if token.token_type == TokenType::IntLiteral(0x8000_0000u32) {
                 let mut preceded_by_unary: bool = false;
                 if let Some(boxed_expr) = parent {
                     if let Expression::Unary { .. } = *boxed_expr {
