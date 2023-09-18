@@ -16,7 +16,8 @@ fn main() {
 
     if cli_output.0.is_some() {
         let cli_output: CLIInfo = cli_output.0.expect("checked by if statement");
-        let output: (Vec<String>, Vec<Log>) = run(cli_output.file_path.as_str(), cli_output.cli_args);
+        let output: (Vec<String>, Vec<Log>) =
+            run(cli_output.file_path.as_str(), cli_output.cli_args);
         for string in output.0 {
             println!("{string}");
         }

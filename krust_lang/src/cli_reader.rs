@@ -7,8 +7,8 @@ use std::env::args;
 use std::fs::read_to_string;
 use std::io;
 use std::num::ParseIntError;
-use std::path::Path;
 use std::panic::catch_unwind;
+use std::path::Path;
 use std::str::ParseBoolError;
 use std::thread;
 
@@ -36,8 +36,11 @@ pub fn read_command_line() -> (Option<CLIInfo>, Vec<Log>) {
     let mut logs: Vec<Log> = Vec::new();
     let mut multiple_file_error: bool = false;
     for arg in input {
-        if Path::new(&arg).extension()
-        .map_or(false, |ext| ext.eq_ignore_ascii_case("txt")) && !multiple_file_error {
+        if Path::new(&arg)
+            .extension()
+            .map_or(false, |ext| ext.eq_ignore_ascii_case("txt"))
+            && !multiple_file_error
+        {
             if file_path.is_none() {
                 file_path = Some(arg.to_string());
             } else {
@@ -75,8 +78,7 @@ fn get_args() -> Result<Vec<String>, Vec<Log>> {
             line_and_col: None,
         }]);
     }
-    let mut input: Vec<String> = input
-        .expect("should be valid as error handled earlier");
+    let mut input: Vec<String> = input.expect("should be valid as error handled earlier");
     if input.len() == 1 {
         return Err(vec![Log {
             log_type: LogType::Error(ErrorType::CLINoArgs),
@@ -100,8 +102,7 @@ fn handle_ptr_size(arg: &str, logs: &mut Vec<Log>, mut ptr_size: u16) -> u16 {
                 line_and_col: None,
             });
         } else {
-            ptr_size = parsed_arg
-                .expect("should be valid as error handled earlier.");
+            ptr_size = parsed_arg.expect("should be valid as error handled earlier.");
         }
         if ptr_size >= 2048 {
             logs.push(Log {
@@ -143,8 +144,7 @@ fn handle_detailed_err(arg: &str, logs: &mut Vec<Log>) -> bool {
                 line_and_col: None,
             });
         } else {
-            return parsed_arg
-                .expect("should be valid as error handled earlier.");
+            return parsed_arg.expect("should be valid as error handled earlier.");
         }
     } else {
         logs.push(Log {

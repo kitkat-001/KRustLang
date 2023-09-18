@@ -61,7 +61,6 @@ pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
     let mut logs: Vec<Log> = Vec::new();
 
     let possible_error = handle_errors(bytecode, &mut output, &mut logs);
-    let possible_error: Option<(&Vec<String>, &Vec<Log>)> = possible_error.0;
     if let Some(error) = possible_error {
         return (error.0.clone(), error.1.clone());
     }
@@ -76,8 +75,7 @@ pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
             if match_op(op, bytecode, &mut stack, &mut index, &mut output, &mut logs) {
                 return (output, logs);
             }
-        }
-        else {
+        } else {
             logs.push(Log {
                 log_type: LogType::Error(ErrorType::FatalError),
                 line_and_col: None,
@@ -93,19 +91,15 @@ fn handle_errors<'o, 'e>(
     bytecode: &Vec<u8>,
     output: &'o mut Vec<String>,
     logs: &'e mut Vec<Log>,
-) -> (
-    Option<(&'o Vec<String>, &'e Vec<Log>)>,
-    Option<(usize, bool)>,
-) {
+) -> Option<(&'o Vec<String>, &'e Vec<Log>)> {
     if bytecode.len() < 2 {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::FatalError),
             line_and_col: None,
         });
-        return (Some((output, logs)), None);
+        return Some((output, logs));
     }
     let ptr_size: usize = bytecode[0] as usize;
-    let detailed_err: bool = bytecode[1] != 0;
     if ptr_size * 8
         > usize::BITS
             .try_into()
@@ -115,9 +109,9 @@ fn handle_errors<'o, 'e>(
             log_type: LogType::Error(ErrorType::CompiledForDifferentTarget(ptr_size * 8)),
             line_and_col: None,
         });
-        return (Some((output, logs)), Some((ptr_size, detailed_err)));
+        return Some((output, logs));
     }
-    (None, Some((ptr_size, detailed_err)))
+    None
 }
 
 // Runs a function given a specific op code.

@@ -6,6 +6,7 @@ use std::cmp::Ordering;
 /// If b is positive, shift left. Otherwise, shift right.
 /// Note: the absolute value of b is greater than the number of bits in a, then all bits in a will be replaced. This is different in other programming langauges, were the leftmost bits of b are ignored.
 #[must_use]
+#[allow(clippy::cast_sign_loss)] // The abs function guarentees that the i32 being converted is positive.
 pub fn shift_int(a: i32, b: i32) -> i32 {
     if b > 31 {
         return 0;

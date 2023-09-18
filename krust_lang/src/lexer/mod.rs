@@ -81,8 +81,8 @@ pub struct LexerOutput {
 pub fn lex(file_path: &str) -> LexerOutput {
     // Prepare fields for output.
     let file_text: Result<String, Error> = read_to_string(file_path);
-    let file_text: String = file_text
-        .expect("should be valid as error handled in command line reader");
+    let file_text: String =
+        file_text.expect("should be valid as error handled in command line reader");
     let mut tokens: Vec<Token> = Vec::new();
     let mut logs: Vec<Log> = Vec::new();
 

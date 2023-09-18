@@ -65,9 +65,9 @@ impl Expression {
     pub fn get_type(&self) -> Option<Type> {
         match &self {
             Self::Binary { expr_type, .. }
-                | Self::Grouping { expr_type, .. }
-                | Self::Literal { expr_type, .. }
-                | Self:: Unary { expr_type, .. } => *expr_type,
+            | Self::Grouping { expr_type, .. }
+            | Self::Literal { expr_type, .. }
+            | Self::Unary { expr_type, .. } => *expr_type,
 
             _ => None,
         }
@@ -89,6 +89,7 @@ struct OpList {
 }
 impl OpList {
     // Gets the default list of operators used by the language.
+    #[allow(clippy::too_many_lines)] // Decreasing lines only makes this function more dense.
     fn get_op_lists() -> [Self; 7] {
         [
             Self {
@@ -463,7 +464,8 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
         }
         Expression::Grouping {
             expr: ref child, ..
-        } | Expression::Unary {
+        }
+        | Expression::Unary {
             expr: ref child, ..
         } => {
             improve_ast(child.clone(), Some(expr), logs);
