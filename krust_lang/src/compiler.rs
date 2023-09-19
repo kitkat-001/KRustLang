@@ -36,7 +36,7 @@ pub enum OpCode {
     OrInt,
     OrByte,
 
-    // Shifts    
+    // Shifts
     LeftShiftInt,
     RightShiftInt,
 
@@ -188,14 +188,14 @@ fn handle_binary(
             bytecode.push(match &left.get_type() {
                 Some(Type::Int) => OpCode::EqualityInt,
                 Some(Type::Bool) => OpCode::EqualityByte,
-                _ => panic!("No other type should be possible.")
+                _ => panic!("No other type should be possible."),
             } as u8);
         }
         TokenType::Inequality => {
             bytecode.push(match &left.get_type() {
                 Some(Type::Int) => OpCode::EqualityInt,
                 Some(Type::Bool) => OpCode::EqualityByte,
-                _ => panic!("No other type should be possible.")
+                _ => panic!("No other type should be possible."),
             } as u8);
             bytecode.push(OpCode::Not as u8);
         }

@@ -170,8 +170,9 @@ fn get_token(
         *col += 1;
     } else if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
         handle_white_space(file_text, c, line, col, index);
-    } else if handle_equals(file_text, tokens, line, col, index) {
-    } else if handle_shift(file_text, tokens, line, col, index) {
+    } else if handle_equals(file_text, tokens, line, col, index)
+        || handle_shift(file_text, tokens, line, col, index)
+    {
     } else if c.is_ascii_digit() {
         handle_number(file_text, tokens, logs, line, col, index);
     } else {
@@ -226,8 +227,7 @@ fn handle_equals(
             *col += 2;
             return true;
         }
-    }
-    else if c == Some('!') {
+    } else if c == Some('!') {
         let c: Option<char> = file_text.chars().nth(*index + 1);
         if c == Some('=') {
             let token: Token = Token {

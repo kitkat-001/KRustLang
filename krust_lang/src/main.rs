@@ -155,7 +155,7 @@ mod tests {
             "open_left_paren",
             "(",
             &Vec::new(),
-            &vec![
+            &[
                 "error (line 1:2): unexpected end of file.".to_string(),
                 "error (line 1:2): expected \')\' following \'(\'.".to_string(),
                 "error: could not compile due to errors.".to_string(),
@@ -169,7 +169,7 @@ mod tests {
             "open_right_paren",
             ")",
             &Vec::new(),
-            &vec![
+            &[
                 "error (line 1:1): unexpected token.".to_string(),
                 "error (line 1:2): unexpected end of file.".to_string(),
                 "error: could not compile due to errors.".to_string(),
@@ -183,7 +183,7 @@ mod tests {
             "empty_parens",
             "()",
             &Vec::new(),
-            &vec![
+            &[
                 "error (line 1:2): expected expression within parentheses.".to_string(),
                 "error: could not compile due to errors.".to_string(),
             ],
@@ -196,7 +196,7 @@ mod tests {
             "bad_type_unary",
             "!1",
             &Vec::new(),
-            &vec![
+            &[
                 "error (line 1:1): the operator \"!\" has no definition over the type \"int\"."
                     .to_string(),
                 "error: could not compile due to errors.".to_string(),
@@ -210,10 +210,8 @@ mod tests {
             "bad_types_binary",
             "1+true",
             &Vec::new(),
-            &vec![
-                "error (line 1:2): the operator \"+\" has no definition over the types \"int\" and \"bool\".".to_string(),
-                "error: could not compile due to errors.".to_string(),
-            ],
+            &["error (line 1:2): the operator \"+\" has no definition over the types \"int\" and \"bool\".".to_string(),
+                "error: could not compile due to errors.".to_string()],
         )
     }
 
@@ -436,7 +434,7 @@ mod tests {
             test_code(
                 "equality_ints_eq",
                 format!("{a}=={a}").as_str(),
-                &vec!["true".to_owned()],
+                &["true".to_owned()],
                 &Vec::new()
             );
         }
@@ -459,7 +457,7 @@ mod tests {
             test_code(
                 "equality_bools_eq",
                 format!("{a}=={a}").as_str(),
-                &vec!["true".to_owned()],
+                &["true".to_owned()],
                 &Vec::new()
             );
         }
@@ -483,7 +481,7 @@ mod tests {
             test_code(
                 "inequality_ints_eq",
                 format!("{a}!={a}").as_str(),
-                &vec!["false".to_owned()],
+                &["false".to_owned()],
                 &Vec::new()
             );
         }
@@ -506,7 +504,7 @@ mod tests {
             test_code(
                 "inequality_bools_eq",
                 format!("{a}!={a}").as_str(),
-                &vec!["false".to_owned()],
+                &["false".to_owned()],
                 &Vec::new()
             );
         }

@@ -128,7 +128,7 @@ fn match_op(
         OpCode::PushByte => push_byte(bytecode, stack, index, logs),
         OpCode::PopInt => pop_int(stack, output, logs),
         OpCode::PopBool => pop_bool(stack, output, logs),
-        
+
         OpCode::MinusInt => minus_int(stack, logs),
         OpCode::AddInt => add_int(stack, logs),
         OpCode::SubtractInt => subtract_int(stack, logs),
@@ -150,7 +150,7 @@ fn match_op(
         OpCode::RightShiftInt => right_shift_int(stack, logs),
 
         OpCode::EqualityInt => equality_int(stack, logs),
-        OpCode::EqualityByte => equality_byte(stack, logs),    
+        OpCode::EqualityByte => equality_byte(stack, logs),
     };
     is_error(logs)
 }
@@ -315,14 +315,13 @@ fn right_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
 
 // Checks if two integers are equal.
 fn equality_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary(stack, logs, |a: i32, b: i32| if a == b {1_u8} else {0_u8}, None);
+    binary(stack, logs, |a: i32, b: i32| u8::from(a == b), None);
 }
 
 // Checks if two bytes are equal
 fn equality_byte(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary(stack, logs, |a: u8, b: u8| if a == b {1_u8} else {0_u8}, None);
+    binary(stack, logs, |a: u8, b: u8| u8::from(a == b), None);
 }
-
 
 // Performs a unary operation.
 fn unary<F, T, TOut>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F)
