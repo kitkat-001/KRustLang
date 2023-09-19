@@ -321,17 +321,6 @@ mod tests {
         }
 
         #[test]
-        fn complement_int(a in proptest::num::i32::ANY)
-        {
-            test_code(
-                "complement_int",
-                format!("~{a}").as_str(),
-                &vec![format!("{}", !a)],
-                &Vec::new()
-            );
-        }
-
-        #[test]
         fn not(a in proptest::bool::ANY)
         {
             test_code(
@@ -343,23 +332,12 @@ mod tests {
         }
 
         #[test]
-        fn left_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        fn complement_int(a in proptest::num::i32::ANY)
         {
             test_code(
-                "left_shift_ints",
-                format!("{a}<<{b}").as_str(),
-                &vec![format!("{}", math::shift_int(a, b))],
-                &Vec::new()
-            );
-        }
-
-        #[test]
-        fn right_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
-            test_code(
-                "right_shift_ints",
-                format!("{a}>>{b}").as_str(),
-                &vec![format!("{}", math::shift_int(a, i32::wrapping_neg(b)))],
+                "complement_int",
+                format!("~{a}").as_str(),
+                &vec![format!("{}", !a)],
                 &Vec::new()
             );
         }
@@ -426,6 +404,121 @@ mod tests {
                 "or_bool",
                 format!("{a} | {b}").as_str(),
                 &vec![format!("{}", a | b)],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn left_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "left_shift_ints",
+                format!("{a}<<{b}").as_str(),
+                &vec![format!("{}", math::shift_int(a, b))],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn right_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            test_code(
+                "right_shift_ints",
+                format!("{a}>>{b}").as_str(),
+                &vec![format!("{}", math::shift_int(a, i32::wrapping_neg(b)))],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn equality_ints_eq(a in proptest::num::i32::ANY)
+        {
+            test_code(
+                "equality_ints_eq",
+                format!("{a}=={a}").as_str(),
+                &vec!["true".to_owned()],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn equality_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            prop_assume!(a != b);
+            test_code(
+                "equality_ints_ineq",
+                format!("{a}=={b}").as_str(),
+                &vec![format!("{}", a == b)],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn equality_bools_eq(a in proptest::bool::ANY)
+        {
+            test_code(
+                "equality_bools_eq",
+                format!("{a}=={a}").as_str(),
+                &vec!["true".to_owned()],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn equality_bools_ineq (a in proptest::bool::ANY, b in proptest::bool::ANY)
+        {
+            prop_assume!(a != b);
+            test_code(
+                "equality_bools_ineq",
+                format!("{a}=={b}").as_str(),
+                &vec![format!("{}", a == b)],
+                &Vec::new()
+            );
+        }
+
+
+        #[test]
+        fn inequality_ints_eq(a in proptest::num::i32::ANY)
+        {
+            test_code(
+                "inequality_ints_eq",
+                format!("{a}!={a}").as_str(),
+                &vec!["false".to_owned()],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn inequality_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            prop_assume!(a != b);
+            test_code(
+                "inequality_ints_ineq",
+                format!("{a}!={b}").as_str(),
+                &vec![format!("{}", a != b)],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn inequality_bools_eq(a in proptest::bool::ANY)
+        {
+            test_code(
+                "inequality_bools_eq",
+                format!("{a}!={a}").as_str(),
+                &vec!["false".to_owned()],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn inequality_bools_ineq (a in proptest::bool::ANY, b in proptest::bool::ANY)
+        {
+            prop_assume!(a != b);
+            test_code(
+                "inequality_bools_ineq",
+                format!("{a}!={b}").as_str(),
+                &vec![format!("{}", a != b)],
                 &Vec::new()
             );
         }

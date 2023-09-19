@@ -90,8 +90,32 @@ struct OpList {
 impl OpList {
     // Gets the default list of operators used by the language.
     #[allow(clippy::too_many_lines)] // Decreasing lines only makes this function more dense.
-    fn get_op_lists() -> [Self; 7] {
+    fn get_op_lists() -> [Self; 8] {
         [
+            Self {
+                list: vec![
+                    Operator {
+                        token: TokenType::Equality,
+                        input: vec![Type::Int, Type::Int],
+                        output: Type::Bool,
+                    },
+                    Operator {
+                        token: TokenType::Equality,
+                        input: vec![Type::Bool, Type::Bool],
+                        output: Type::Bool,
+                    },
+                    Operator {
+                        token: TokenType::Inequality,
+                        input: vec![Type::Int, Type::Int],
+                        output: Type::Bool,
+                    },
+                    Operator {
+                        token: TokenType::Inequality,
+                        input: vec![Type::Bool, Type::Bool],
+                        output: Type::Bool,
+                    },
+                ],
+            },
             Self {
                 list: vec![
                     Operator {
@@ -403,7 +427,7 @@ fn get_operators(
     precendence: usize,
     source: &String,
 ) -> Option<Expression> {
-    let operator_list: [OpList; 7] = OpList::get_op_lists();
+    let operator_list: &[OpList] = &OpList::get_op_lists();
     if precendence >= operator_list.len() {
         Some(get_primary(tokens, logs, index, source))
     } else if operator_list[precendence].arg_count()? == 1 {

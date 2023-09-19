@@ -44,6 +44,8 @@ pub enum TokenType {
     // Multi-character tokens.
     LeftShift,
     RightShift,
+    Equality,
+    Inequality,
 
     // Literals
     IntLiteral(u32),
@@ -133,7 +135,6 @@ fn get_token(
         ('%', TokenType::Percent),
         ('~', TokenType::Tilde),
         ('&', TokenType::Ampersand),
-        ('!', TokenType::ExclamationMark),
         ('^', TokenType::Caret),
         ('|', TokenType::Bar),
         ('(', TokenType::LeftParen),
@@ -169,6 +170,7 @@ fn get_token(
         *col += 1;
     } else if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
         handle_white_space(file_text, c, line, col, index);
+    } else if handle_equals(file_text, tokens, line, col, index) {
     } else if handle_shift(file_text, tokens, line, col, index) {
     } else if c.is_ascii_digit() {
         handle_number(file_text, tokens, logs, line, col, index);
@@ -200,6 +202,61 @@ fn handle_white_space(
     *index += 1;
 }
 
+// Handles tokens using the equals sign.
+fn handle_equals(
+    file_text: &str,
+    tokens: &mut Vec<Token>,
+    line: &mut usize,
+    col: &mut usize,
+    index: &mut usize,
+) -> bool {
+    let c: Option<char> = file_text.chars().nth(*index);
+    if c == Some('=') {
+        let c: Option<char> = file_text.chars().nth(*index + 1);
+        if c == Some('=') {
+            let token: Token = Token {
+                token_type: TokenType::Equality,
+                line: *line,
+                col: *col,
+                start: *index,
+                length: 2,
+            };
+            tokens.push(token);
+            *index += 2;
+            *col += 2;
+            return true;
+        }
+    }
+    else if c == Some('!') {
+        let c: Option<char> = file_text.chars().nth(*index + 1);
+        if c == Some('=') {
+            let token: Token = Token {
+                token_type: TokenType::Inequality,
+                line: *line,
+                col: *col,
+                start: *index,
+                length: 2,
+            };
+            tokens.push(token);
+            *index += 2;
+            *col += 2;
+            return true;
+        }
+        let token: Token = Token {
+            token_type: TokenType::ExclamationMark,
+            line: *line,
+            col: *col,
+            start: *index,
+            length: 1,
+        };
+        tokens.push(token);
+        *index += 1;
+        *col += 1;
+        return true;
+    }
+    false
+}
+
 // Handles shift tokens.
 fn handle_shift(
     file_text: &str,
@@ -210,7 +267,7 @@ fn handle_shift(
 ) -> bool {
     let c: Option<char> = file_text.chars().nth(*index);
     if c == Some('<') {
-        let c: Option<char> = file_text.chars().nth(*index);
+        let c: Option<char> = file_text.chars().nth(*index + 1);
         if c == Some('<') {
             let token: Token = Token {
                 token_type: TokenType::LeftShift,
@@ -225,7 +282,7 @@ fn handle_shift(
             return true;
         }
     } else if c == Some('>') {
-        let c: Option<char> = file_text.chars().nth(*index);
+        let c: Option<char> = file_text.chars().nth(*index + 1);
         if c == Some('>') {
             let token: Token = Token {
                 token_type: TokenType::RightShift,
@@ -346,6 +403,6 @@ fn handle_other(
 fn is_token_separator(c_option: Option<char>) -> bool {
     match c_option {
         None => true,
-        Some(c) => c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '(' || c == ')',
+        Some(c) => !(c.is_ascii_alphanumeric() || c == '_'),
     }
 }

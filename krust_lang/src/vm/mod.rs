@@ -128,22 +128,29 @@ fn match_op(
         OpCode::PushByte => push_byte(bytecode, stack, index, logs),
         OpCode::PopInt => pop_int(stack, output, logs),
         OpCode::PopBool => pop_bool(stack, output, logs),
+        
         OpCode::MinusInt => minus_int(stack, logs),
         OpCode::AddInt => add_int(stack, logs),
         OpCode::SubtractInt => subtract_int(stack, logs),
         OpCode::MultiplyInt => multiply_int(stack, logs),
         OpCode::DivideInt => divide_int(bytecode, stack, index, logs),
         OpCode::ModuloInt => modulo_int(bytecode, stack, index, logs),
-        OpCode::ComplementInt => complement_int(stack, logs),
+
         OpCode::Not => not(stack, logs),
-        OpCode::LeftShiftInt => left_shift_int(stack, logs),
-        OpCode::RightShiftInt => right_shift_int(stack, logs),
+
+        OpCode::ComplementInt => complement_int(stack, logs),
         OpCode::AndInt => and_int(stack, logs),
         OpCode::AndByte => and_byte(stack, logs),
         OpCode::XorInt => xor_int(stack, logs),
         OpCode::XorByte => xor_byte(stack, logs),
         OpCode::OrInt => or_int(stack, logs),
         OpCode::OrByte => or_byte(stack, logs),
+
+        OpCode::LeftShiftInt => left_shift_int(stack, logs),
+        OpCode::RightShiftInt => right_shift_int(stack, logs),
+
+        OpCode::EqualityInt => equality_int(stack, logs),
+        OpCode::EqualityByte => equality_byte(stack, logs),    
     };
     is_error(logs)
 }
@@ -256,24 +263,14 @@ fn modulo_int(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: 
     );
 }
 
-// Finds the complement of an int.
-fn complement_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    unary(stack, logs, |a: i32| !a);
-}
-
 // Negates a bool.
 fn not(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
     unary(stack, logs, |a: u8| a ^ 1);
 }
 
-// Left shifts an int by an int
-fn left_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary(stack, logs, shift_int, None);
-}
-
-// Left shifts an int by an int
-fn right_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    binary(stack, logs, |a: i32, b: i32| shift_int(a, -b), None);
+// Finds the complement of an int.
+fn complement_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
+    unary(stack, logs, |a: i32| !a);
 }
 
 // Bitwise ands two ints.
@@ -305,6 +302,27 @@ fn or_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
 fn or_byte(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
     binary(stack, logs, |a: u8, b: u8| a | b, None);
 }
+
+// Left shifts an int by an int
+fn left_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
+    binary(stack, logs, shift_int, None);
+}
+
+// Right shifts an int by an int
+fn right_shift_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
+    binary(stack, logs, |a: i32, b: i32| shift_int(a, -b), None);
+}
+
+// Checks if two integers are equal.
+fn equality_int(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
+    binary(stack, logs, |a: i32, b: i32| if a == b {1_u8} else {0_u8}, None);
+}
+
+// Checks if two bytes are equal
+fn equality_byte(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
+    binary(stack, logs, |a: u8, b: u8| if a == b {1_u8} else {0_u8}, None);
+}
+
 
 // Performs a unary operation.
 fn unary<F, T, TOut>(stack: &mut Vec<u8>, logs: &mut Vec<Log>, func: F)

@@ -10,31 +10,39 @@ use num_derive::FromPrimitive;
 /// The `OpCode` used in the bytecode.
 #[derive(FromPrimitive, Clone, Copy)]
 pub enum OpCode {
+    // Stack operators
     PushInt,
     PushByte,
     PopInt,
     PopBool,
 
+    // Arithmetic operators
     MinusInt,
-
     AddInt,
     SubtractInt,
     MultiplyInt,
     DivideInt,
     ModuloInt,
 
-    ComplementInt,
+    // Boolean operators
     Not,
 
-    LeftShiftInt,
-    RightShiftInt,
-
+    // Bitwise operators
+    ComplementInt,
     AndInt,
     AndByte,
     XorInt,
     XorByte,
     OrInt,
     OrByte,
+
+    // Shifts    
+    LeftShiftInt,
+    RightShiftInt,
+
+    // Equality operators
+    EqualityInt,
+    EqualityByte,
 }
 
 /// The output given by the compiler.
@@ -56,7 +64,7 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
             .expr
             .get_type()
             .expect("any \"None\" should have a parsing error");
-        byte_list.append(&mut generate_bytecode(parser_output.expr, cli_args[0]));
+        byte_list.append(&mut generate_bytecode(&parser_output.expr, cli_args[0]));
         byte_list.push(match expr_type {
             Type::Int => OpCode::PopInt,
             Type::Bool => OpCode::PopBool,
@@ -78,7 +86,7 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
     }
 }
 
-fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8> {
+fn generate_bytecode(expr: &Expression, ptr_size: u8) -> Vec<u8> {
     let mut bytecode: Vec<u8> = Vec::new();
     match expr {
         Expression::Binary {
@@ -90,22 +98,22 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8> {
             handle_binary(
                 &mut bytecode,
                 ptr_size,
-                *left,
-                op,
-                *right,
+                left,
+                *op,
+                right,
                 expr_type.expect("any \"None\" should have a parsing error"),
             );
         }
         Expression::Grouping { expr: child, .. } => {
-            bytecode.append(&mut generate_bytecode(*child, ptr_size));
+            bytecode.append(&mut generate_bytecode(child, ptr_size));
         }
         Expression::Literal { token, .. } => {
-            handle_literal(&mut bytecode, token);
+            handle_literal(&mut bytecode, *token);
         }
         Expression::Unary {
             op, expr: child, ..
         } => {
-            bytecode.append(&mut generate_bytecode(*child, ptr_size));
+            bytecode.append(&mut generate_bytecode(child, ptr_size));
             bytecode.push(match op.token_type {
                 TokenType::Minus => OpCode::MinusInt,
                 TokenType::Tilde => OpCode::ComplementInt,
@@ -122,9 +130,9 @@ fn generate_bytecode(expr: Expression, ptr_size: u8) -> Vec<u8> {
 fn handle_binary(
     bytecode: &mut Vec<u8>,
     ptr_size: u8,
-    left: Expression,
+    left: &Expression,
     op: Token,
-    right: Expression,
+    right: &Expression,
     expr_type: Type,
 ) {
     bytecode.append(&mut generate_bytecode(left, ptr_size));
@@ -150,13 +158,6 @@ fn handle_binary(
             bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
         }
 
-        TokenType::LeftShift => {
-            bytecode.push(OpCode::LeftShiftInt as u8);
-        }
-        TokenType::RightShift => {
-            bytecode.push(OpCode::RightShiftInt as u8);
-        }
-
         TokenType::Ampersand => {
             bytecode.push(match expr_type {
                 Type::Int => OpCode::AndInt,
@@ -175,6 +176,30 @@ fn handle_binary(
                 Type::Bool => OpCode::OrByte,
             } as u8);
         }
+
+        TokenType::LeftShift => {
+            bytecode.push(OpCode::LeftShiftInt as u8);
+        }
+        TokenType::RightShift => {
+            bytecode.push(OpCode::RightShiftInt as u8);
+        }
+
+        TokenType::Equality => {
+            bytecode.push(match &left.get_type() {
+                Some(Type::Int) => OpCode::EqualityInt,
+                Some(Type::Bool) => OpCode::EqualityByte,
+                _ => panic!("No other type should be possible.")
+            } as u8);
+        }
+        TokenType::Inequality => {
+            bytecode.push(match &left.get_type() {
+                Some(Type::Int) => OpCode::EqualityInt,
+                Some(Type::Bool) => OpCode::EqualityByte,
+                _ => panic!("No other type should be possible.")
+            } as u8);
+            bytecode.push(OpCode::Not as u8);
+        }
+
         _ => {
             panic!("invalid token found at head of binary expression.")
         }
