@@ -60,7 +60,7 @@ fn run(file_path: &str, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
 mod tests {
     use super::run;
     use krust::log;
-    use krust::vm::math;
+    use krust::vm::test_func::shift_int;
 
     use log::all_to_string;
     use std::fs;
@@ -90,7 +90,7 @@ mod tests {
             "above_max_int",
             format!("{}", 0x8000_0001u32).as_str(),
             &Vec::new(),
-            &vec![
+            &[
                 format!(
                     "error (line 1:1): int literal \"{}\" must be at most {}.",
                     0x8000_0001u32, 0x8000_0000u32
@@ -106,7 +106,7 @@ mod tests {
             "max_int_no_sign", 
             format!("{}", 0x8000_0000u32).as_str(), 
             &Vec::new(), 
-            &vec![
+            &[
                 format!("error (line 1:1): the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000u32),
                 "error: could not compile due to errors.".to_string()
             ]
@@ -118,7 +118,7 @@ mod tests {
         test_code(
             "max_int_pos",
             format!("{}", 0x8000_0000u32 - 1).as_str(),
-            &vec![format!("{}", 0x8000_0000u32 - 1)],
+            &[format!("{}", 0x8000_0000u32 - 1)],
             &Vec::new(),
         );
     }
@@ -129,7 +129,7 @@ mod tests {
             "below_min_int",
             format!("-{}", 0x8000_0001u32).as_str(),
             &Vec::new(),
-            &vec![
+            &[
                 format!(
                     "error (line 1:2): int literal \"{}\" must be at most {}.",
                     0x8000_0001u32, 0x8000_0000u32
@@ -144,7 +144,7 @@ mod tests {
         test_code(
             "min_int",
             format!("-{}", 0x8000_0000u32).as_str(),
-            &vec![format!("-{}", 0x8000_0000u32)],
+            &[format!("-{}", 0x8000_0000u32)],
             &Vec::new(),
         );
     }
@@ -160,7 +160,7 @@ mod tests {
                 "error (line 1:2): expected \')\' following \'(\'.".to_string(),
                 "error: could not compile due to errors.".to_string(),
             ],
-        )
+        );
     }
 
     #[test]
@@ -174,7 +174,7 @@ mod tests {
                 "error (line 1:2): unexpected end of file.".to_string(),
                 "error: could not compile due to errors.".to_string(),
             ],
-        )
+        );
     }
 
     #[test]
@@ -187,7 +187,7 @@ mod tests {
                 "error (line 1:2): expected expression within parentheses.".to_string(),
                 "error: could not compile due to errors.".to_string(),
             ],
-        )
+        );
     }
 
     #[test]
@@ -201,7 +201,7 @@ mod tests {
                     .to_string(),
                 "error: could not compile due to errors.".to_string(),
             ],
-        )
+        );
     }
 
     #[test]
@@ -212,7 +212,7 @@ mod tests {
             &Vec::new(),
             &["error (line 1:2): the operator \"+\" has no definition over the types \"int\" and \"bool\".".to_string(),
                 "error: could not compile due to errors.".to_string()],
-        )
+        );
     }
 
     proptest! {
@@ -222,7 +222,7 @@ mod tests {
             test_code(
                 "random_int",
                 format!("{value}").as_str(),
-                &vec![format!("{value}")],
+                &[format!("{value}")],
                 &Vec::new()
             );
         }
@@ -233,7 +233,7 @@ mod tests {
             test_code(
                 "add_ints",
                 format!("{a}+{b}").as_str(),
-                &vec![format!("{}", i32::wrapping_add(a, b))],
+                &[format!("{}", i32::wrapping_add(a, b))],
                 &Vec::new()
             );
         }
@@ -244,7 +244,7 @@ mod tests {
             test_code(
                 "sub_ints",
                 format!("{a}-{b}").as_str(),
-                &vec![format!("{}", i32::wrapping_sub(a, b))],
+                &[format!("{}", i32::wrapping_sub(a, b))],
                 &Vec::new()
             );
         }
@@ -255,7 +255,7 @@ mod tests {
             test_code(
                 "mul_ints",
                 format!("{a}*{b}").as_str(),
-                &vec![format!("{}", i32::wrapping_mul(a, b))],
+                &[format!("{}", i32::wrapping_mul(a, b))],
                 &Vec::new()
             );
         }
@@ -273,7 +273,7 @@ mod tests {
             test_code(
                 "div_ints",
                 format!("{a}/{b}").as_str(),
-                &vec![format!("{}", i32::wrapping_div(a, b))],
+                &[format!("{}", i32::wrapping_div(a, b))],
                 &Vec::new()
             );
         }
@@ -285,7 +285,7 @@ mod tests {
                 "div_by_zero",
                 format!("{a}/0").as_str(),
                 &Vec::new(),
-                &vec![format!("error (line 1:{}): division by zero.", format!("{a}").chars().count() + 1)]
+                &[format!("error (line 1:{}): division by zero.", format!("{a}").chars().count() + 1)]
             );
         }
 
@@ -302,7 +302,7 @@ mod tests {
             test_code(
                 "mod_ints",
                 format!("{a}%{b}").as_str(),
-                &vec![format!("{}", i32::wrapping_rem_euclid(a, b))],
+                &[format!("{}", i32::wrapping_rem_euclid(a, b))],
                 &Vec::new()
             );
         }
@@ -314,7 +314,7 @@ mod tests {
                 "mod_by_zero",
                 format!("{a}%0").as_str(),
                 &Vec::new(),
-                &vec![format!("error (line 1:{}): division by zero.", format!("{a}").chars().count() + 1)]
+                &[format!("error (line 1:{}): division by zero.", format!("{a}").chars().count() + 1)]
             );
         }
 
@@ -324,7 +324,7 @@ mod tests {
             test_code(
                 "not",
                 format!("!{a}").as_str(),
-                &vec![format!("{}", !a)],
+                &[format!("{}", !a)],
                 &Vec::new()
             );
         }
@@ -335,7 +335,7 @@ mod tests {
             test_code(
                 "complement_int",
                 format!("~{a}").as_str(),
-                &vec![format!("{}", !a)],
+                &[format!("{}", !a)],
                 &Vec::new()
             );
         }
@@ -346,7 +346,7 @@ mod tests {
             test_code(
                 "and_int",
                 format!("{a} & {b}").as_str(),
-                &vec![format!("{}", a & b)],
+                &[format!("{}", a & b)],
                 &Vec::new()
             );
         }
@@ -357,7 +357,7 @@ mod tests {
             test_code(
                 "and_bool",
                 format!("{a} & {b}").as_str(),
-                &vec![format!("{}", a & b)],
+                &[format!("{}", a & b)],
                 &Vec::new()
             );
         }
@@ -368,7 +368,7 @@ mod tests {
             test_code(
                 "xor_int",
                 format!("{a} ^ {b}").as_str(),
-                &vec![format!("{}", a ^ b)],
+                &[format!("{}", a ^ b)],
                 &Vec::new()
             );
         }
@@ -379,7 +379,7 @@ mod tests {
             test_code(
                 "xor_bool",
                 format!("{a} ^ {b}").as_str(),
-                &vec![format!("{}", a ^ b)],
+                &[format!("{}", a ^ b)],
                 &Vec::new()
             );
         }
@@ -390,7 +390,7 @@ mod tests {
             test_code(
                 "or_int",
                 format!("{a} | {b}").as_str(),
-                &vec![format!("{}", a | b)],
+                &[format!("{}", a | b)],
                 &Vec::new()
             );
         }
@@ -401,7 +401,7 @@ mod tests {
             test_code(
                 "or_bool",
                 format!("{a} | {b}").as_str(),
-                &vec![format!("{}", a | b)],
+                &[format!("{}", a | b)],
                 &Vec::new()
             );
         }
@@ -412,7 +412,7 @@ mod tests {
             test_code(
                 "left_shift_ints",
                 format!("{a}<<{b}").as_str(),
-                &vec![format!("{}", math::shift_int(a, b))],
+                &[format!("{}", shift_int(a, b))],
                 &Vec::new()
             );
         }
@@ -423,7 +423,7 @@ mod tests {
             test_code(
                 "right_shift_ints",
                 format!("{a}>>{b}").as_str(),
-                &vec![format!("{}", math::shift_int(a, i32::wrapping_neg(b)))],
+                &[format!("{}", shift_int(a, -b))],
                 &Vec::new()
             );
         }
@@ -446,7 +446,7 @@ mod tests {
             test_code(
                 "equality_ints_ineq",
                 format!("{a}=={b}").as_str(),
-                &vec![format!("{}", a == b)],
+                &[format!("{}", a == b)],
                 &Vec::new()
             );
         }
@@ -469,7 +469,7 @@ mod tests {
             test_code(
                 "equality_bools_ineq",
                 format!("{a}=={b}").as_str(),
-                &vec![format!("{}", a == b)],
+                &[format!("{}", a == b)],
                 &Vec::new()
             );
         }
@@ -493,7 +493,7 @@ mod tests {
             test_code(
                 "inequality_ints_ineq",
                 format!("{a}!={b}").as_str(),
-                &vec![format!("{}", a != b)],
+                &[format!("{}", a != b)],
                 &Vec::new()
             );
         }
@@ -516,7 +516,7 @@ mod tests {
             test_code(
                 "inequality_bools_ineq",
                 format!("{a}!={b}").as_str(),
-                &vec![format!("{}", a != b)],
+                &[format!("{}", a != b)],
                 &Vec::new()
             );
         }
@@ -528,7 +528,7 @@ mod tests {
                 "double_add",
                 format!("{a}++{b}").as_str(),
                 &Vec::new(),
-                &vec![
+                &[
                     format!("error (line 1:{}): unexpected token.", format!("{a}").chars().count() + 2),
                     "error: could not compile due to errors.".to_string()
                 ]
@@ -545,7 +545,7 @@ mod tests {
             test_code(
                 "order_of_ops",
                 format!("{a}+{b}*{c}").as_str(),
-                &vec![format!("{}", i32::wrapping_add(a, i32::wrapping_mul(b, c)))],
+                &[format!("{}", i32::wrapping_add(a, i32::wrapping_mul(b, c)))],
                 &Vec::new()
             );
         }
@@ -561,7 +561,7 @@ mod tests {
             test_code(
                 "bitwise_order_of_ops",
                 format!("{a} | {b} ^ {c} & {d}").as_str(),
-                &vec![format!("{}", a | (b ^ (c & d)))],
+                &[format!("{}", a | (b ^ (c & d)))],
                 &Vec::new()
             );
         }
@@ -576,7 +576,7 @@ mod tests {
             test_code(
                 "mixed_order_of_ops",
                 format!("{a} & {b} + {c}").as_str(),
-                &vec![format!("{}", a  & i32::wrapping_add(b, c))],
+                &[format!("{}", a  & i32::wrapping_add(b, c))],
                 &Vec::new()
             );
         }
@@ -592,7 +592,7 @@ mod tests {
             test_code(
                 "bool_order_of_ops",
                 format!("{a} | {b} ^ {c} & {d}").as_str(),
-                &vec![format!("{}", a | (b ^ (c & d)))],
+                &[format!("{}", a | (b ^ (c & d)))],
                 &Vec::new()
             );
         }
@@ -608,7 +608,7 @@ mod tests {
             test_code(
                 "paren_test",
                 format!("{a}*({b}+{c})").as_str(),
-                &vec![format!("{}", i32::wrapping_mul(a, i32::wrapping_add(b, c)))],
+                &[format!("{}", i32::wrapping_mul(a, i32::wrapping_add(b, c)))],
                 &Vec::new()
             );
         }
