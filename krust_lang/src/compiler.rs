@@ -43,6 +43,8 @@ pub enum OpCode {
     // Equality operators
     EqualityInt,
     EqualityByte,
+    InequalityInt,
+    InequalityByte,
 }
 
 /// The output given by the compiler.
@@ -193,11 +195,10 @@ fn handle_binary(
         }
         TokenType::Inequality => {
             bytecode.push(match &left.get_type() {
-                Some(Type::Int) => OpCode::EqualityInt,
-                Some(Type::Bool) => OpCode::EqualityByte,
+                Some(Type::Int) => OpCode::InequalityInt,
+                Some(Type::Bool) => OpCode::InequalityByte,
                 _ => panic!("No other type should be possible."),
             } as u8);
-            bytecode.push(OpCode::Not as u8);
         }
 
         _ => {

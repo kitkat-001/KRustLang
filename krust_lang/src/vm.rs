@@ -30,12 +30,19 @@ trait StackType: Copy + Display + Sized {
 
     // Returns whether or not two values are equal.
     fn eq(a: Self, b: Self) -> bool;
+
+    // Returns whether or not two values are not equal.
+    fn ineq(a: Self, b: Self) -> bool;
 }
 
 macro_rules! add_eq {
     () => {
         fn eq(a: Self, b: Self) -> bool {
             a == b
+        }
+
+        fn ineq(a: Self, b: Self) -> bool {
+            a != b
         }
     };
 }
@@ -282,6 +289,8 @@ fn match_op(
 
         OpCode::EqualityInt => equality::<i32>(stack, logs),
         OpCode::EqualityByte => equality::<u8>(stack, logs),
+        OpCode::InequalityInt => inequality::<i32>(stack, logs),
+        OpCode::InequalityByte => inequality::<u8>(stack, logs),
     };
     is_error(logs)
 }
@@ -449,6 +458,14 @@ where
     T: StackType,
 {
     binary(stack, logs, <T>::eq, None);
+}
+
+// Checks if two values are not equal.
+fn inequality<T>(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+where
+    T: StackType,
+{
+    binary(stack, logs, <T>::ineq, None);
 }
 
 // Performs a unary operation.
