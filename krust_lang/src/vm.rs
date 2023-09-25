@@ -123,6 +123,18 @@ trait NumType: StackType {
     // Gets the remainder after division of the given values. Outputs zero if b is zero.
     fn rem(a: Self, b: Self) -> Self;
 
+    // Compares two values with '<'.
+    fn les(a: Self, b: Self) -> bool;
+
+    // Compares two values with '<='.
+    fn leq(a: Self, b: Self) -> bool;
+
+    // Compares two values with '>'.
+    fn grt(a: Self, b: Self) -> bool;
+
+    // Compares two values with '>='.
+    fn geq(a: Self, b: Self) -> bool;
+
     // Returns whether or not the value is 0.
     fn is_zero(a: Self) -> bool;
 }
@@ -139,15 +151,19 @@ macro_rules! implIntegralType {
             fn neg(a: Self) -> Self {
                 <$type>::wrapping_neg(a)
             }
+
             fn add(a: Self, b: Self) -> Self {
                 <$type>::wrapping_add(a, b)
             }
+
             fn sub(a: Self, b: Self) -> Self {
                 <$type>::wrapping_sub(a, b)
             }
+
             fn mul(a: Self, b: Self) -> Self {
                 <$type>::wrapping_mul(a, b)
             }
+
             fn div(a: Self, b: Self) -> Self {
                 if b == 0 {
                     0
@@ -155,6 +171,7 @@ macro_rules! implIntegralType {
                     <$type>::wrapping_div(a, b)
                 }
             }
+
             fn rem(a: Self, b: Self) -> Self {
                 if b == 0 {
                     0
@@ -162,6 +179,23 @@ macro_rules! implIntegralType {
                     <$type>::wrapping_rem_euclid(a, b)
                 }
             }
+
+            fn les(a: Self, b: Self) -> bool {
+                a < b
+            }
+
+            fn leq(a: Self, b: Self) -> bool {
+                a <= b
+            }
+
+            fn grt(a: Self, b: Self) -> bool {
+                a > b
+            }
+
+            fn geq(a: Self, b: Self) -> bool {
+                a >= b
+            }
+
             fn is_zero(a: Self) -> bool {
                 a == 0
             }
@@ -273,6 +307,11 @@ fn match_op(
         OpCode::MultiplyInt => multiply::<i32>(stack, logs),
         OpCode::DivideInt => divide::<i32>(bytecode, stack, index, logs),
         OpCode::ModuloInt => modulo::<i32>(bytecode, stack, index, logs),
+
+        OpCode::LessInt => less::<i32>(stack, logs),
+        OpCode::LessEqualInt => less_equal::<i32>(stack, logs),
+        OpCode::GreaterInt => greater::<i32>(stack, logs),
+        OpCode::GreaterEqualInt => greater_equal::<i32>(stack, logs),
 
         OpCode::Not => not(stack, logs),
 
@@ -394,6 +433,38 @@ where
             bytecode,
         }),
     );
+}
+
+// Compares two values with '<'.
+fn less<T>(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+where
+    T: NumType,
+{
+    binary(stack, logs, T::les, None);
+}
+
+// Compares two values with '<='.
+fn less_equal<T>(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+where
+    T: NumType,
+{
+    binary(stack, logs, T::leq, None);
+}
+
+// Compares two values with '>'.
+fn greater<T>(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+where
+    T: NumType,
+{
+    binary(stack, logs, T::grt, None);
+}
+
+// Compares two values with '>='.
+fn greater_equal<T>(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+where
+    T: NumType,
+{
+    binary(stack, logs, T::geq, None);
 }
 
 // Negates a bool.

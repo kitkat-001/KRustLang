@@ -24,6 +24,12 @@ pub enum OpCode {
     DivideInt,
     ModuloInt,
 
+    // Comparison operators.
+    LessInt,
+    LessEqualInt,
+    GreaterInt,
+    GreaterEqualInt,
+
     // Boolean operators
     Not,
 
@@ -158,6 +164,19 @@ fn handle_binary(
             bytecode.push(OpCode::ModuloInt as u8);
             bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
             bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
+        }
+
+        TokenType::Less => {
+            bytecode.push(OpCode::LessInt as u8);
+        }
+        TokenType::LessEqual => {
+            bytecode.push(OpCode::LessEqualInt as u8);
+        }
+        TokenType::Greater => {
+            bytecode.push(OpCode::GreaterInt as u8);
+        }
+        TokenType::GreaterEqual => {
+            bytecode.push(OpCode::GreaterEqualInt as u8);
         }
 
         TokenType::Ampersand => {

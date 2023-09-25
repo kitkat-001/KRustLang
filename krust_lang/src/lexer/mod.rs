@@ -34,6 +34,8 @@ pub enum TokenType {
     Slash,
     Percent,
     Tilde,
+    Less,
+    Greater,
     ExclamationMark,
     Ampersand,
     Caret,
@@ -42,6 +44,8 @@ pub enum TokenType {
     RightParen,
 
     // Multi-character tokens.
+    LessEqual,
+    GreaterEqual,
     LeftShift,
     RightShift,
     Equality,
@@ -171,7 +175,7 @@ fn get_token(
     } else if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
         handle_white_space(file_text, c, line, col, index);
     } else if handle_equals(file_text, tokens, line, col, index)
-        || handle_shift(file_text, tokens, line, col, index)
+        || handle_ineq(file_text, tokens, line, col, index)
     {
     } else if c.is_ascii_digit() {
         handle_number(file_text, tokens, logs, line, col, index);
@@ -257,20 +261,53 @@ fn handle_equals(
     false
 }
 
-// Handles shift tokens.
-fn handle_shift(
+// Handles inequality and shift tokens.
+fn handle_ineq(
     file_text: &str,
     tokens: &mut Vec<Token>,
     line: &mut usize,
     col: &mut usize,
     index: &mut usize,
 ) -> bool {
+    handle_ineq_char(
+        file_text,
+        tokens,
+        line,
+        col,
+        index,
+        '<',
+        [TokenType::Less, TokenType::LeftShift, TokenType::LessEqual],
+    ) || handle_ineq_char(
+        file_text,
+        tokens,
+        line,
+        col,
+        index,
+        '>',
+        [
+            TokenType::Greater,
+            TokenType::RightShift,
+            TokenType::GreaterEqual,
+        ],
+    )
+}
+
+// Handles characters that are used in inequalities ('<', '>').
+fn handle_ineq_char(
+    file_text: &str,
+    tokens: &mut Vec<Token>,
+    line: &mut usize,
+    col: &mut usize,
+    index: &mut usize,
+    ineq: char,
+    token_list: [TokenType; 3], // Order should be strict inequality, shift, inequality.
+) -> bool {
     let c: Option<char> = file_text.chars().nth(*index);
-    if c == Some('<') {
+    if c == Some(ineq) {
         let c: Option<char> = file_text.chars().nth(*index + 1);
-        if c == Some('<') {
+        if c == Some(ineq) {
             let token: Token = Token {
-                token_type: TokenType::LeftShift,
+                token_type: token_list[1],
                 line: *line,
                 col: *col,
                 start: *index,
@@ -279,13 +316,10 @@ fn handle_shift(
             tokens.push(token);
             *index += 2;
             *col += 2;
-            return true;
-        }
-    } else if c == Some('>') {
-        let c: Option<char> = file_text.chars().nth(*index + 1);
-        if c == Some('>') {
+            true
+        } else if c == Some('=') {
             let token: Token = Token {
-                token_type: TokenType::RightShift,
+                token_type: token_list[2],
                 line: *line,
                 col: *col,
                 start: *index,
@@ -294,10 +328,23 @@ fn handle_shift(
             tokens.push(token);
             *index += 2;
             *col += 2;
-            return true;
+            true
+        } else {
+            let token: Token = Token {
+                token_type: token_list[0],
+                line: *line,
+                col: *col,
+                start: *index,
+                length: 1,
+            };
+            tokens.push(token);
+            *index += 1;
+            *col += 1;
+            true
         }
+    } else {
+        false
     }
-    false
 }
 
 // Handles numerical tokens.

@@ -95,6 +95,26 @@ impl OpList {
             Self {
                 list: vec![
                     Operator {
+                        token: TokenType::Less,
+                        input: vec![Type::Int, Type::Int],
+                        output: Type::Bool,
+                    },
+                    Operator {
+                        token: TokenType::LessEqual,
+                        input: vec![Type::Int, Type::Int],
+                        output: Type::Bool,
+                    },
+                    Operator {
+                        token: TokenType::Greater,
+                        input: vec![Type::Int, Type::Int],
+                        output: Type::Bool,
+                    },
+                    Operator {
+                        token: TokenType::GreaterEqual,
+                        input: vec![Type::Int, Type::Int],
+                        output: Type::Bool,
+                    },
+                    Operator {
                         token: TokenType::Equality,
                         input: vec![Type::Int, Type::Int],
                         output: Type::Bool,

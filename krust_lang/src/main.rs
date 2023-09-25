@@ -319,6 +319,98 @@ mod tests {
         }
 
         #[test]
+        fn less_ints_eq(a in proptest::num::i32::ANY)
+        {
+            test_code(
+                "less_ints_eq",
+                format!("{a}<{a}").as_str(),
+                &["false".to_owned()],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn less_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            prop_assume!(a != b);
+            test_code(
+                "less_ints_ineq",
+                format!("{a}<{b}").as_str(),
+                &[format!("{}", a < b)],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn less_equal_ints_eq(a in proptest::num::i32::ANY)
+        {
+            test_code(
+                "less_equal_ints_eq",
+                format!("{a}<={a}").as_str(),
+                &["true".to_owned()],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn less_equal_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            prop_assume!(a != b);
+            test_code(
+                "less_equal_ints_ineq",
+                format!("{a}<={b}").as_str(),
+                &[format!("{}", a <= b)],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn greater_ints_eq(a in proptest::num::i32::ANY)
+        {
+            test_code(
+                "greater_ints_eq",
+                format!("{a}>{a}").as_str(),
+                &["false".to_owned()],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn greater_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            prop_assume!(a != b);
+            test_code(
+                "greater_ints_ineq",
+                format!("{a}>{b}").as_str(),
+                &[format!("{}", a > b)],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn greater_equal_ints_eq(a in proptest::num::i32::ANY)
+        {
+            test_code(
+                "greater_equal_ints_eq",
+                format!("{a}>={a}").as_str(),
+                &["true".to_owned()],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn greater_equal_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
+        {
+            prop_assume!(a != b);
+            test_code(
+                "greater_equal_ints_ineq",
+                format!("{a}>={b}").as_str(),
+                &[format!("{}", a >= b)],
+                &Vec::new()
+            );
+        }
+
+        #[test]
         fn not(a in proptest::bool::ANY)
         {
             test_code(
