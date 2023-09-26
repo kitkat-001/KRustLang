@@ -31,6 +31,9 @@ pub enum Expression {
         right: Box<Expression>,
         expr_type: Option<Type>,
     },
+    ExpressionList {
+        list: Vec<Box<Expression>>,
+    },
     Grouping {
         expr: Box<Expression>,
         expr_type: Option<Type>,
@@ -47,6 +50,7 @@ pub enum Expression {
         expr: Box<Expression>,
         expr_type: Option<Type>,
     },
+    Unit,
 
     EOF,
     Null,
@@ -74,9 +78,14 @@ impl Expression {
             | Self::Literal { expr_type, .. }
             | Self::Unary { expr_type, .. } => *expr_type,
 
-            Self::Statement { .. } => Some(Type::Unit),
+            Self::ExpressionList { list } => match list.last() {
+                None => Some(Type::Unit),
+                Some(expr) => expr.get_type(),
+            },
 
-            _ => None,
+            Self::Statement { .. } | Self::Unit => Some(Type::Unit),
+
+            Self::EOF | Self::Null => None,
         }
     }
 }
@@ -341,7 +350,8 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput {
     let mut logs: Vec<Log> = lex_output.logs.clone();
     let mut index: usize = 0;
     let tokens: Vec<Token> = lex_output.tokens;
-    let expr: Expression = get_statement(&tokens, &mut logs, &mut index, &lex_output.file_text);
+    let expr: Expression =
+        get_expression_list(&tokens, &mut logs, &mut index, &lex_output.file_text);
     if index < tokens.len() && tokens[index].token_type != TokenType::EOF {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::ExpectedEOF),
@@ -356,12 +366,37 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput {
     }
 }
 
+// Gets a list of expressions from the token list. These should all be statements except for the last one.
+fn get_expression_list(
+    tokens: &Vec<Token>,
+    logs: &mut Vec<Log>,
+    index: &mut usize,
+    source: &String,
+) -> Expression {
+    let mut list: Vec<Box<Expression>> = Vec::new();
+    let mut is_stmt: bool = true;
+    while is_stmt {
+        let next_expr: Expression = get_statement(tokens, logs, index, source);
+        if let Expression::Statement { .. } = next_expr {
+        } else {
+            is_stmt = false;
+        }
+        list.push(Box::new(next_expr));
+    }
+    Expression::ExpressionList { list }
+}
+
+// Gets a statement from the token list.
 fn get_statement(
     tokens: &Vec<Token>,
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
 ) -> Expression {
+    if let TokenType::EOF = tokens[*index].token_type {
+        return Expression::Unit;
+    }
+
     let mut expr: Expression = get_expression(tokens, logs, index, source);
     if let TokenType::EOF = tokens[*index - 1].token_type {
         return expr;
@@ -533,12 +568,18 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
             improve_ast(left.clone(), Some(expr.clone()), logs);
             improve_ast(right.clone(), Some(expr), logs);
         }
+        Expression::ExpressionList { ref list } => {
+            for element in list {
+                improve_ast(element.clone(), Some(expr.clone()), logs);
+            }
+        }
         Expression::Grouping {
             expr: ref child, ..
         }
         | Expression::Unary {
             expr: ref child, ..
-        } => {
+        }
+        | Expression::Statement { expr: ref child } => {
             improve_ast(child.clone(), Some(expr), logs);
         }
         Expression::Literal { token, .. } => {
@@ -557,6 +598,7 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
                 }
             }
         }
-        _ => {}
+
+        Expression::EOF | Expression::Null | Expression::Unit => {}
     }
 }

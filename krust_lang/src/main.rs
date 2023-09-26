@@ -85,6 +85,11 @@ mod tests {
     }
 
     #[test]
+    fn empty() {
+        test_code("empty", "", &Vec::new(), &Vec::new());
+    }
+
+    #[test]
     fn above_max_int() {
         test_code(
             "above_max_int",
@@ -221,6 +226,15 @@ mod tests {
             "statements_no_output_test",
             "true;",
             &Vec::new(),
+            &Vec::new(),
+        );
+    }
+    #[test]
+    fn statement_and_expression() {
+        test_code(
+            "statement_and_expression",
+            "true; false",
+            &["false".to_string()],
             &Vec::new(),
         );
     }

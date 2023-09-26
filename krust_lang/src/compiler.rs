@@ -118,6 +118,11 @@ fn generate_bytecode(expr: &Expression, ptr_size: u8) -> Vec<u8> {
                 expr_type.expect("any \"None\" should have a parsing error"),
             );
         }
+        Expression::ExpressionList { list } => {
+            for expr in list {
+                bytecode.append(&mut generate_bytecode(expr, ptr_size));
+            }
+        }
         Expression::Grouping { expr: child, .. } => {
             bytecode.append(&mut generate_bytecode(child, ptr_size));
         }
@@ -145,6 +150,7 @@ fn generate_bytecode(expr: &Expression, ptr_size: u8) -> Vec<u8> {
                 _ => panic!("all unary operators should have been accounted for"),
             } as u8);
         }
+        Expression::Unit => {}
         _ => panic!("all expression types should have been accounted for"),
     }
     bytecode
