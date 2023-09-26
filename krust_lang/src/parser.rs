@@ -9,6 +9,7 @@ use std::fmt::{Display, Formatter, Result};
 pub enum Type {
     Int,
     Bool,
+    Unit, // Nothing type.
 }
 
 impl Display for Type {
@@ -16,6 +17,7 @@ impl Display for Type {
         match self {
             Self::Int => write!(f, "\"int\""),
             Self::Bool => write!(f, "\"bool\""),
+            Self::Unit => write!(f, "\"()\""),
         }
     }
 }
@@ -36,6 +38,9 @@ pub enum Expression {
     Literal {
         token: Token,
         expr_type: Option<Type>,
+    },
+    Statement {
+        expr: Box<Expression>,
     },
     Unary {
         op: Token,
@@ -68,6 +73,8 @@ impl Expression {
             | Self::Grouping { expr_type, .. }
             | Self::Literal { expr_type, .. }
             | Self::Unary { expr_type, .. } => *expr_type,
+
+            Self::Statement { .. } => Some(Type::Unit),
 
             _ => None,
         }
@@ -334,7 +341,7 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput {
     let mut logs: Vec<Log> = lex_output.logs.clone();
     let mut index: usize = 0;
     let tokens: Vec<Token> = lex_output.tokens;
-    let expr: Expression = get_expression(&tokens, &mut logs, &mut index, &lex_output.file_text);
+    let expr: Expression = get_statement(&tokens, &mut logs, &mut index, &lex_output.file_text);
     if index < tokens.len() && tokens[index].token_type != TokenType::EOF {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::ExpectedEOF),
@@ -347,6 +354,26 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput {
         expr,
         logs,
     }
+}
+
+fn get_statement(
+    tokens: &Vec<Token>,
+    logs: &mut Vec<Log>,
+    index: &mut usize,
+    source: &String,
+) -> Expression {
+    let mut expr: Expression = get_expression(tokens, logs, index, source);
+    if let TokenType::EOF = tokens[*index - 1].token_type {
+        return expr;
+    }
+
+    if let TokenType::Semicolon = tokens[*index].token_type {
+        expr = Expression::Statement {
+            expr: Box::new(expr),
+        };
+        *index += 1;
+    }
+    expr
 }
 
 // Get the expression from the token list.

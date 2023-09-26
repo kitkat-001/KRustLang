@@ -14,7 +14,9 @@ pub enum OpCode {
     PushInt,
     PushByte,
     PopInt,
-    PopBool,
+    PopByte,
+    PrintInt,
+    PrintBool,
 
     // Arithmetic operators
     MinusInt,
@@ -62,6 +64,7 @@ pub struct CompilerOutput {
 
 /// Compiles to bytecode.
 #[must_use]
+#[allow(clippy::missing_panics_doc)] // Should never actually panic.
 pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput {
     let mut bytecode: Option<Vec<u8>> = None;
     let mut logs: Vec<Log> = parser_output.logs.clone();
@@ -73,10 +76,13 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
             .get_type()
             .expect("any \"None\" should have a parsing error");
         byte_list.append(&mut generate_bytecode(&parser_output.expr, cli_args[0]));
-        byte_list.push(match expr_type {
-            Type::Int => OpCode::PopInt,
-            Type::Bool => OpCode::PopBool,
-        } as u8);
+        if expr_type != Type::Unit {
+            byte_list.push(match expr_type {
+                Type::Int => OpCode::PrintInt,
+                Type::Bool => OpCode::PrintBool,
+                Type::Unit => panic!("Should have been caught by above if statement."),
+            } as u8);
+        }
         if u32::from(cli_args[0]) * 8 < usize::BITS && byte_list.len() >= 1 << (cli_args[0] * 8) {
             logs.push(Log {
                 log_type: LogType::Error(ErrorType::ExcessiveBytecode),
@@ -117,6 +123,16 @@ fn generate_bytecode(expr: &Expression, ptr_size: u8) -> Vec<u8> {
         }
         Expression::Literal { token, .. } => {
             handle_literal(&mut bytecode, *token);
+        }
+        Expression::Statement { expr } => {
+            bytecode.append(&mut generate_bytecode(expr, ptr_size));
+            if expr.get_type() != Some(Type::Unit) {
+                bytecode.push(match expr.get_type() {
+                    Some(Type::Int) => OpCode::PopInt,
+                    Some(Type::Bool) => OpCode::PopByte,
+                    _ => panic!("This type is invalid."),
+                } as u8);
+            }
         }
         Expression::Unary {
             op, expr: child, ..
@@ -183,18 +199,21 @@ fn handle_binary(
             bytecode.push(match expr_type {
                 Type::Int => OpCode::AndInt,
                 Type::Bool => OpCode::AndByte,
+                Type::Unit => panic!("Invalid type for this operation"),
             } as u8);
         }
         TokenType::Caret => {
             bytecode.push(match expr_type {
                 Type::Int => OpCode::XorInt,
                 Type::Bool => OpCode::XorByte,
+                Type::Unit => panic!("Invalid type for this operation"),
             } as u8);
         }
         TokenType::Bar => {
             bytecode.push(match expr_type {
                 Type::Int => OpCode::OrInt,
                 Type::Bool => OpCode::OrByte,
+                Type::Unit => panic!("Invalid type for this operation"),
             } as u8);
         }
 

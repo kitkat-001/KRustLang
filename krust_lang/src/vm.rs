@@ -298,8 +298,10 @@ fn match_op(
     match op {
         OpCode::PushInt => push::<i32>(bytecode, stack, index, logs),
         OpCode::PushByte => push::<u8>(bytecode, stack, index, logs),
-        OpCode::PopInt => pop::<i32>(stack, output, logs),
-        OpCode::PopBool => pop::<bool>(stack, output, logs),
+        OpCode::PopInt => pop::<i32>(stack, logs),
+        OpCode::PopByte => pop::<u8>(stack, logs),
+        OpCode::PrintInt => print::<i32>(stack, output, logs),
+        OpCode::PrintBool => print::<bool>(stack, output, logs),
 
         OpCode::MinusInt => minus::<i32>(stack, logs),
         OpCode::AddInt => add::<i32>(stack, logs),
@@ -351,8 +353,21 @@ where
     }
 }
 
+fn pop<T>(stack: &mut Vec<u8>, logs: &mut Vec<Log>)
+where
+    T: StackType,
+{
+    let value: Option<T> = T::pop_from_stack(stack);
+    if value.is_none() {
+        logs.push(Log {
+            log_type: LogType::Error(ErrorType::FatalError),
+            line_and_col: None,
+        });
+    }
+}
+
 // Pops a value from the stack and adds it to the output.
-fn pop<T>(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>)
+fn print<T>(stack: &mut Vec<u8>, output: &mut Vec<String>, logs: &mut Vec<Log>)
 where
     T: StackType,
 {

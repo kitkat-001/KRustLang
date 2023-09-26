@@ -215,6 +215,16 @@ mod tests {
         );
     }
 
+    #[test]
+    fn statements_no_output_test() {
+        test_code(
+            "statements_no_output_test",
+            "true;",
+            &Vec::new(),
+            &Vec::new(),
+        );
+    }
+
     proptest! {
         #[test]
         fn random_int(value in proptest::num::i32::ANY)

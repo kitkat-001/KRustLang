@@ -42,6 +42,7 @@ pub enum TokenType {
     Bar,
     LeftParen,
     RightParen,
+    Semicolon,
 
     // Multi-character tokens.
     LessEqual,
@@ -143,6 +144,7 @@ fn get_token(
         ('|', TokenType::Bar),
         ('(', TokenType::LeftParen),
         (')', TokenType::RightParen),
+        (';', TokenType::Semicolon),
     ]);
 
     // EOF
