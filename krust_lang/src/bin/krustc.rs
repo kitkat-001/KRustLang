@@ -4,8 +4,8 @@
 use krust::cli_reader::{read_command_line, CLIInfo};
 use krust::compiler::{compile, CompilerOutput};
 use krust::lexer::{lex, LexerOutput};
-use krust::log::{ErrorType, Log, LogType};
 use krust::parser::{parse, ParserOutput};
+use krust::util::log::{ErrorType, Log, LogType};
 use std::env::{current_dir, set_current_dir};
 use std::fs::{rename, File};
 use std::io::{prelude::*, Error};

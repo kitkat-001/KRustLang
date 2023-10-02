@@ -1,6 +1,6 @@
 //! The module for the virtual machine used by the language.
 
-use crate::{compiler, log};
+use crate::{compiler, util::log};
 use compiler::OpCode;
 use log::{is_error, ErrorType, Log, LogType};
 use std::cmp::Ordering;

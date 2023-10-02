@@ -32,6 +32,7 @@ impl<TKey: PartialEq + Clone, TValue: Clone> Node<TKey, TValue> {
     }
 
     /// Creates a trie based on multiple lists of values and keys.
+    #[must_use]
     pub fn new(values: Vec<(Vec<TKey>, TValue)>) -> Self {
         let mut trie: Self = Self {
             value: None,
@@ -81,6 +82,7 @@ impl<TValue: Clone> Node<char, TValue> {
     }
 
     /// Creates a trie based on multiple lists of values and keys. Uses Strings as the keys.
+    #[must_use]
     pub fn new_with_string(values: Vec<(String, TValue)>) -> Self {
         let mut new_vec: Vec<(Vec<char>, TValue)> = Vec::new();
         for pair in values {

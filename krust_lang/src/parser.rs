@@ -1,7 +1,8 @@
 //! The module for parsing the tokens and creating the AST.
-use crate::{lexer, log};
+use crate::{lexer, util::log};
 use lexer::{LexerOutput, Token, TokenType};
 use log::{ErrorType, Log, LogType};
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result};
 
 /// The types in this language.
@@ -45,12 +46,23 @@ pub enum Expression {
     Statement {
         expr: Box<Expression>,
     },
+    Type {
+        value: Type,
+    },
     Unary {
         op: Token,
         expr: Box<Expression>,
         expr_type: Option<Type>,
     },
     Unit,
+    Variable { 
+        initialized: bool,
+        token: Token,
+        expr_type: Option<Type>,
+    },
+    VariableDeclaration {
+        initialized_var: Box<Expression>,
+    },
 
     EOF,
     Null,
@@ -76,7 +88,8 @@ impl Expression {
             Self::Binary { expr_type, .. }
             | Self::Grouping { expr_type, .. }
             | Self::Literal { expr_type, .. }
-            | Self::Unary { expr_type, .. } => *expr_type,
+            | Self::Unary { expr_type, .. }
+            | Self::Variable { expr_type, .. } => *expr_type,
 
             Self::ExpressionList { list } => match list.last() {
                 None => Some(Type::Unit),
@@ -85,7 +98,9 @@ impl Expression {
 
             Self::Statement { .. } | Self::Unit => Some(Type::Unit),
 
-            Self::EOF | Self::Null => None,
+            Self::VariableDeclaration { initialized_var } => initialized_var.get_type(),
+
+            Self::EOF | Self::Null | Self::Type{ .. } => None,
         }
     }
 }
@@ -350,8 +365,9 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput {
     let mut logs: Vec<Log> = lex_output.logs.clone();
     let mut index: usize = 0;
     let tokens: Vec<Token> = lex_output.tokens;
+    let mut var_list: HashMap<String, Expression> = HashMap::new();
     let expr: Expression =
-        get_expression_list(&tokens, &mut logs, &mut index, &lex_output.file_text);
+        get_expression_list(&tokens, &mut logs, &mut index, &lex_output.file_text, &mut var_list);
     if index < tokens.len() && tokens[index].token_type != TokenType::EOF {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::ExpectedEOF),
@@ -372,11 +388,12 @@ fn get_expression_list(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
+    var_list: &mut HashMap<String, Expression>
 ) -> Expression {
     let mut list: Vec<Box<Expression>> = Vec::new();
     let mut is_stmt: bool = true;
     while is_stmt {
-        let next_expr: Expression = get_statement(tokens, logs, index, source);
+        let next_expr: Expression = get_statement(tokens, logs, index, source, var_list);
         if let Expression::Statement { .. } = next_expr {
         } else {
             is_stmt = false;
@@ -392,12 +409,13 @@ fn get_statement(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
+    var_list: &mut HashMap<String, Expression>
 ) -> Expression {
     if let TokenType::EOF = tokens[*index].token_type {
         return Expression::Unit;
     }
 
-    let mut expr: Expression = get_expression(tokens, logs, index, source);
+    let mut expr: Expression = get_expression(tokens, logs, index, source, var_list);
     if let TokenType::EOF = tokens[*index - 1].token_type {
         return expr;
     }
@@ -417,8 +435,9 @@ fn get_expression(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
+    var_list: &mut HashMap<String, Expression>
 ) -> Expression {
-    get_operators(tokens, logs, index, 0, source).unwrap_or(Expression::Null)
+    get_operators(tokens, logs, index, 0, source, var_list).unwrap_or(Expression::Null)
 }
 
 // Get a primary expression (literals and grouping expressions).
@@ -427,6 +446,7 @@ fn get_primary(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
+    var_list: &mut HashMap<String, Expression>
 ) -> Expression {
     let token: Token = tokens[*index];
     *index += 1;
@@ -443,7 +463,7 @@ fn get_primary(
             token,
             expr_type: None,
         },
-        TokenType::LeftParen => handle_paren(tokens, logs, index, source),
+        TokenType::LeftParen => handle_paren(tokens, logs, index, source, var_list),
         TokenType::EOF => {
             logs.push(Log {
                 log_type: LogType::Error(ErrorType::UnexpectedEOF),
@@ -451,12 +471,28 @@ fn get_primary(
             });
             Expression::EOF
         }
+        TokenType::Int => Expression::Type { value: Type::Int },
+        TokenType::Bool => Expression::Type { value: Type::Bool },
+        TokenType::Other => 
+        {
+            let key: &String = &token.to_string(source);
+            if var_list.contains_key(key)
+            {
+                var_list[key].clone()
+            } else {
+                Expression::Variable { 
+                    initialized: false, 
+                    token, 
+                    expr_type: None
+                }
+            }
+        },
         _ => {
             logs.push(Log {
                 log_type: LogType::Error(ErrorType::UnexpectedToken),
                 line_and_col: Some((token.line, token.col)),
             });
-            get_expression(tokens, logs, index, source)
+            get_expression(tokens, logs, index, source, var_list)
         }
     }
 }
@@ -467,6 +503,7 @@ fn handle_paren(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
+    var_list: &mut HashMap<String, Expression>
 ) -> Expression {
     if tokens[*index].token_type == TokenType::RightParen {
         logs.push(Log {
@@ -479,7 +516,7 @@ fn handle_paren(
             expr_type: None,
         };
     }
-    let expr: Expression = get_expression(tokens, logs, index, source);
+    let expr: Expression = get_expression(tokens, logs, index, source, var_list);
     if matches!(expr, Expression::EOF) {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::ExpectedCloseParen),
@@ -502,21 +539,53 @@ fn handle_paren(
 }
 
 // Gets an expression based on the operator precedence.
+#[allow(clippy::redundant_else)] // TODO: Remove this later.
+#[allow(clippy::question_mark)] // TODO: Remove this later.
 fn get_operators(
     tokens: &Vec<Token>,
     logs: &mut Vec<Log>,
     index: &mut usize,
     precendence: usize,
     source: &String,
+    var_list: &mut HashMap<String, Expression>
 ) -> Option<Expression> {
     let operator_list: &[OpList] = &OpList::get_op_lists();
+    // Variable setup
+    if precendence == 0 {
+        let old_index: usize = *index;
+        let expr:Expression  = get_operators(tokens, logs, index, precendence + 1, source, var_list)?;
+        if let Expression::Type{ value } = expr {
+            let var: Option<Expression> = get_operators(tokens, logs, index, precendence, source, var_list);
+            if let Some(var) = var {
+                if let Expression::Variable { token, .. } = var {
+                    let new_var: Expression = Expression::Variable { 
+                        initialized: true,
+                        token, 
+                        expr_type: Some(value)
+                    };
+                    var_list.insert(token.to_string(source), new_var.clone());
+                    return Some(new_var);
+                }
+            } else {
+                logs.push(Log{
+                    log_type: LogType::Error(ErrorType::ExpectedVariableDeclaration(value.to_string())),
+                    line_and_col: Some((tokens[old_index].line, tokens[old_index].col))
+                });
+                return var;
+            }
+        }
+        return Some(expr);
+    }
+    let precendence: usize = precendence - 1;
+
+    // Other operators
     if precendence >= operator_list.len() {
-        Some(get_primary(tokens, logs, index, source))
+        Some(get_primary(tokens, logs, index, source, var_list))
     } else if operator_list[precendence].arg_count()? == 1 {
         if operator_list[precendence].contains(tokens[*index].token_type) {
             let op: Token = tokens[*index];
             *index += 1;
-            let expr: Expression = get_operators(tokens, logs, index, precendence, source)?;
+            let expr: Expression = get_operators(tokens, logs, index, precendence, source, var_list)?;
             let expr_type: Option<Type> = operator_list[precendence].get_output_type(
                 &op,
                 vec![expr.get_type()],
@@ -528,13 +597,13 @@ fn get_operators(
                 expr_type,
             });
         }
-        return get_operators(tokens, logs, index, precendence + 1, source);
+        return get_operators(tokens, logs, index, precendence + 1, source, var_list);
     } else if operator_list[precendence].arg_count()? == 2 {
-        let mut expr: Expression = get_operators(tokens, logs, index, precendence + 1, source)?;
+        let mut expr: Expression = get_operators(tokens, logs, index, precendence + 1, source, var_list)?;
         while !expr.is_eof() && operator_list[precendence].contains(tokens[*index].token_type) {
             let op: Token = tokens[*index];
             *index += 1;
-            let right: Expression = get_operators(tokens, logs, index, precendence + 1, source)?;
+            let right: Expression = get_operators(tokens, logs, index, precendence + 1, source, var_list)?;
             let type_list: Vec<Option<Type>> = vec![expr.get_type(), right.get_type()];
             let is_eof: bool = right.is_eof();
             expr = Expression::Binary {
@@ -599,6 +668,7 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
             }
         }
 
-        Expression::EOF | Expression::Null | Expression::Unit => {}
+        Expression::EOF | Expression::Null | Expression::Type{..} 
+        | Expression::Unit | Expression::Variable { .. } | Expression::VariableDeclaration { .. }=> {}
     }
 }

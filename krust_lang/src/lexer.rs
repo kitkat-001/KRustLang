@@ -1,8 +1,6 @@
 //! The module for lexing the source file, i.e. splitting it up into tokens.
 
-mod trie;
-
-use crate::log;
+use crate::util::{log, trie};
 use log::{ErrorType, Log, LogType};
 use std::collections::HashMap;
 use std::fs::read_to_string;
@@ -43,6 +41,7 @@ pub enum TokenType {
     LeftParen,
     RightParen,
     Semicolon,
+    Equals,
 
     // Multi-character tokens.
     LessEqual,
@@ -58,6 +57,10 @@ pub enum TokenType {
     // Keywords
     True,
     False,
+    Int,
+    Bool,
+
+    Other, // User defined tokens, like variable names.
 
     EOF, // End of file.
 
@@ -102,6 +105,8 @@ pub fn lex(file_path: &str) -> LexerOutput {
     let trie: Node<char, TokenType> = Node::new_with_string(vec![
         ("true".to_string(), TokenType::True),
         ("false".to_string(), TokenType::False),
+        ("int".to_string(), TokenType::Int),
+        ("bool".to_string(), TokenType::Bool),
     ]);
 
     // Loop through each token until the end of the file is found.
@@ -182,7 +187,7 @@ fn get_token(
     } else if c.is_ascii_digit() {
         handle_number(file_text, tokens, logs, line, col, index);
     } else {
-        handle_other(file_text, tokens, logs, line, col, index, trie);
+        handle_other(file_text, tokens, line, col, index, trie);
     }
 
     None
@@ -231,7 +236,19 @@ fn handle_equals(
             tokens.push(token);
             *index += 2;
             *col += 2;
-            return true;
+            true
+        } else {
+            let token: Token = Token {
+                token_type: TokenType::Equals,
+                line: *line,
+                col: *col,
+                start: *index,
+                length: 1,
+            };
+            tokens.push(token);
+            *index += 1;
+            *col += 1;
+            true
         }
     } else if c == Some('!') {
         let c: Option<char> = file_text.chars().nth(*index + 1);
@@ -246,21 +263,21 @@ fn handle_equals(
             tokens.push(token);
             *index += 2;
             *col += 2;
-            return true;
+            true
+        } else {
+            let token: Token = Token {
+                token_type: TokenType::ExclamationMark,
+                line: *line,
+                col: *col,
+                start: *index,
+                length: 1,
+            };
+            tokens.push(token);
+            *index += 1;
+            *col += 1;
+            true
         }
-        let token: Token = Token {
-            token_type: TokenType::ExclamationMark,
-            line: *line,
-            col: *col,
-            start: *index,
-            length: 1,
-        };
-        tokens.push(token);
-        *index += 1;
-        *col += 1;
-        return true;
-    }
-    false
+    } else {false}
 }
 
 // Handles inequality and shift tokens.
@@ -408,11 +425,10 @@ fn is_digit_option(c_option: Option<char>) -> bool {
     }
 }
 
-// Handles keywords and unexpected characters/tokens.
+// Handles keywords and other tokens.
 fn handle_other(
     file_text: &str,
     tokens: &mut Vec<Token>,
-    logs: &mut Vec<Log>,
     line: &mut usize,
     col: &mut usize,
     index: &mut usize,
@@ -427,7 +443,7 @@ fn handle_other(
     let token_type: TokenType = if let Some(t) = token_type {
         t
     } else {
-        TokenType::Error
+        TokenType::Other
     };
     let token: Token = Token {
         token_type,
@@ -436,12 +452,6 @@ fn handle_other(
         start: *index,
         length,
     };
-    if token_type == TokenType::Error {
-        logs.push(Log {
-            log_type: LogType::Error(ErrorType::UnrecognizedToken(token.to_string(file_text))),
-            line_and_col: Some((*line, *col)),
-        });
-    }
     tokens.push(token);
     *index += length;
     *col += length;

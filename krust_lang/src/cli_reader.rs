@@ -1,6 +1,6 @@
 //! The module for reading from the command line.
 
-use crate::log;
+use crate::util::log;
 use log::{ErrorType, Log, LogType, WarningType};
 use std::cmp::min;
 use std::env::args;

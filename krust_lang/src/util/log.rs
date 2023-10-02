@@ -35,7 +35,6 @@ pub enum ErrorType {
     CLINoFile,
     CLIFileToBig(usize),
 
-    UnrecognizedToken(String),
     UnrepresentableIntegerLiteral(String),
     InvalidArgsForOperator(String, Vec<String>),
 
@@ -44,6 +43,7 @@ pub enum ErrorType {
     UnexpectedToken,
     ExpectedExpressionInParens,
     ExpectedCloseParen,
+    ExpectedVariableDeclaration(String),
     UnnegatedMinimumIntegerLiteral,
 
     ExcessiveBytecode,
@@ -113,8 +113,6 @@ impl Display for Log {
                 ErrorType::CLIFileToBig(ptr_size) 
                     => format!("the file is too big to compile for a {ptr_size}-bit machine."),
 
-                ErrorType::UnrecognizedToken(token) 
-                    => format!("unrecognized token \"{token}\"."),
                 ErrorType::UnrepresentableIntegerLiteral(token) 
                     => format!("int literal \"{token}\" must be at most {}.", 0x_8000_0000_u32),
                 ErrorType::InvalidArgsForOperator(op, types)
@@ -127,6 +125,8 @@ impl Display for Log {
                 ErrorType::UnexpectedToken => "unexpected token.".to_string(),
                 ErrorType::ExpectedExpressionInParens => "expected expression within parentheses.".to_string(),
                 ErrorType::ExpectedCloseParen => "expected \')\' following \'(\'.".to_string(),
+                ErrorType::ExpectedVariableDeclaration(value)
+                    => format!("expected a varaible declaration after {value}"),
                 ErrorType::UnnegatedMinimumIntegerLiteral
                     => format!("the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000_u32),
 

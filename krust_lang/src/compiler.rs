@@ -1,6 +1,6 @@
 //! The module for compiling source code into byte code.
 
-use crate::{lexer, log, parser};
+use crate::{lexer, parser, util::log};
 use lexer::{Token, TokenType};
 use log::{is_error, ErrorType, Log, LogType};
 use parser::{Expression, ParserOutput, Type};
