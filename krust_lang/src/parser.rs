@@ -437,7 +437,7 @@ fn get_expression(
     source: &String,
     var_list: &mut HashMap<String, Expression>
 ) -> Expression {
-    get_operators(tokens, logs, index, 0, source, var_list).unwrap_or(Expression::Null)
+    get_variable_declaration(tokens, logs, index, source, var_list).unwrap_or(Expression::Null)
 }
 
 // Get a primary expression (literals and grouping expressions).
@@ -538,9 +538,40 @@ fn handle_paren(
     Expression::Grouping { expr, expr_type }
 }
 
+// Handle variable declarations.
+fn get_variable_declaration(
+    tokens: &Vec<Token>,
+    logs: &mut Vec<Log>,
+    index: &mut usize,
+    source: &String,
+    var_list: &mut HashMap<String, Expression>
+) -> Option<Expression> {
+    let old_index: usize = *index;
+    let expr:Expression  = get_operators(tokens, logs, index, 0, source, var_list)?;
+    if let Expression::Type{ value } = expr {
+        let var: Option<Expression> = get_operators(tokens, logs, index, 0, source, var_list);
+        if let Some(var) = var {
+            if let Expression::Variable { token, .. } = var {
+                let new_var: Expression = Expression::Variable { 
+                    initialized: true,
+                    token, 
+                    expr_type: Some(value)
+                };
+                var_list.insert(token.to_string(source), new_var.clone());
+                return Some(new_var);
+            }
+        } else {
+            logs.push(Log{
+                log_type: LogType::Error(ErrorType::ExpectedVariableDeclaration(value.to_string())),
+                line_and_col: Some((tokens[old_index].line, tokens[old_index].col))
+            });
+            return var;
+        }
+    }
+    Some(expr)
+}
+
 // Gets an expression based on the operator precedence.
-#[allow(clippy::redundant_else)] // TODO: Remove this later.
-#[allow(clippy::question_mark)] // TODO: Remove this later.
 fn get_operators(
     tokens: &Vec<Token>,
     logs: &mut Vec<Log>,
@@ -550,35 +581,6 @@ fn get_operators(
     var_list: &mut HashMap<String, Expression>
 ) -> Option<Expression> {
     let operator_list: &[OpList] = &OpList::get_op_lists();
-    // Variable setup
-    if precendence == 0 {
-        let old_index: usize = *index;
-        let expr:Expression  = get_operators(tokens, logs, index, precendence + 1, source, var_list)?;
-        if let Expression::Type{ value } = expr {
-            let var: Option<Expression> = get_operators(tokens, logs, index, precendence, source, var_list);
-            if let Some(var) = var {
-                if let Expression::Variable { token, .. } = var {
-                    let new_var: Expression = Expression::Variable { 
-                        initialized: true,
-                        token, 
-                        expr_type: Some(value)
-                    };
-                    var_list.insert(token.to_string(source), new_var.clone());
-                    return Some(new_var);
-                }
-            } else {
-                logs.push(Log{
-                    log_type: LogType::Error(ErrorType::ExpectedVariableDeclaration(value.to_string())),
-                    line_and_col: Some((tokens[old_index].line, tokens[old_index].col))
-                });
-                return var;
-            }
-        }
-        return Some(expr);
-    }
-    let precendence: usize = precendence - 1;
-
-    // Other operators
     if precendence >= operator_list.len() {
         Some(get_primary(tokens, logs, index, source, var_list))
     } else if operator_list[precendence].arg_count()? == 1 {
