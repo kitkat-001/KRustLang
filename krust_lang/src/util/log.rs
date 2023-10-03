@@ -36,14 +36,15 @@ pub enum ErrorType {
     CLIFileToBig(usize),
 
     UnrepresentableIntegerLiteral(String),
-    InvalidArgsForOperator(String, Vec<String>),
-
+    
     ExpectedEOF,
     UnexpectedEOF,
     UnexpectedToken,
     ExpectedExpressionInParens,
     ExpectedCloseParen,
     ExpectedVariableDeclaration(String),
+    InvalidArgsForOperator(String, Vec<String>),
+    InvalidArgsForAssignment(String, [String; 2]),
     UnnegatedMinimumIntegerLiteral,
 
     ExcessiveBytecode,
@@ -115,10 +116,6 @@ impl Display for Log {
 
                 ErrorType::UnrepresentableIntegerLiteral(token) 
                     => format!("int literal \"{token}\" must be at most {}.", 0x_8000_0000_u32),
-                ErrorType::InvalidArgsForOperator(op, types)
-                    => format!("the operator \"{op}\" has no definition over the type{} {}.", 
-                        if types.len() == 1 {""} else {"s"},
-                        format_vec_string(&types).unwrap_or_default()),
 
                 ErrorType::ExpectedEOF => "expected end of file.".to_string(),
                 ErrorType::UnexpectedEOF => "unexpected end of file.".to_string(),
@@ -127,6 +124,12 @@ impl Display for Log {
                 ErrorType::ExpectedCloseParen => "expected \')\' following \'(\'.".to_string(),
                 ErrorType::ExpectedVariableDeclaration(value)
                     => format!("expected a varaible declaration after {value}"),
+                ErrorType::InvalidArgsForOperator(op, types)
+                    => format!("the operator \"{op}\" has no definition over the type{} {}.", 
+                        if types.len() == 1 {""} else {"s"},
+                        format_vec_string(&types).unwrap_or_default()),
+                ErrorType::InvalidArgsForAssignment(var, types)
+                    => format!("The variable \"{var}\" has type {}, so it can not be assigned a value of type {}", types[0], types[1]),
                 ErrorType::UnnegatedMinimumIntegerLiteral
                     => format!("the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000_u32),
 

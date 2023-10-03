@@ -437,7 +437,7 @@ fn get_expression(
     source: &String,
     var_list: &mut HashMap<String, Expression>
 ) -> Expression {
-    get_variable_declaration(tokens, logs, index, source, var_list).unwrap_or(Expression::Null)
+    handle_assignment(tokens, logs, index, source, var_list).unwrap_or(Expression::Null)
 }
 
 // Get a primary expression (literals and grouping expressions).
@@ -536,6 +536,46 @@ fn handle_paren(
     }
     let expr_type: Option<Type> = expr.get_type();
     Expression::Grouping { expr, expr_type }
+}
+
+// Handles variable assignment.
+fn handle_assignment(
+    tokens: &Vec<Token>,
+    logs: &mut Vec<Log>,
+    index: &mut usize,
+    source: &String,
+    var_list: &mut HashMap<String, Expression>
+) -> Option<Expression> {
+    let mut expr: Expression = get_variable_declaration(tokens, logs, index, source, var_list)?;
+    let mut var: Expression = expr.clone();
+    if let Expression::VariableDeclaration { initialized_var } = var {
+        var = *initialized_var;
+    }
+    if let Expression::Variable { token, expr_type, .. } = var {
+        let op = tokens[*index];
+        if let TokenType::Equals = tokens[*index].token_type
+        {
+            *index += 1;
+            let mut expr_type: Option<Type> = expr_type;
+            let assignment: Option<Expression> = get_variable_declaration(tokens, logs, index, source, var_list);
+            if let Some(assignment) = assignment.clone() {
+                if assignment.get_type() != expr_type {
+                    if assignment.get_type().is_some() && expr_type.is_some() {
+                        logs.push(Log {
+                            log_type: LogType::Error(ErrorType::InvalidArgsForAssignment(
+                                token.to_string(source),
+                                [expr_type?.to_string(), assignment.get_type()?.to_string()] // Both types are not null here.
+                            )),
+                            line_and_col: Some((op.line, op.col))
+                        });
+                    }
+                    expr_type = None;
+                }
+            } else { expr_type = None; }
+            expr = Expression::Binary { left: Box::new(expr), op, right: Box::new(assignment?), expr_type };
+        }
+    }
+    Some(expr)
 }
 
 // Handle variable declarations.
