@@ -332,6 +332,8 @@ fn match_op(
         OpCode::EqualityByte => equality::<u8>(stack, logs),
         OpCode::InequalityInt => inequality::<i32>(stack, logs),
         OpCode::InequalityByte => inequality::<u8>(stack, logs),
+
+        _ => todo!(),
     };
     is_error(logs)
 }

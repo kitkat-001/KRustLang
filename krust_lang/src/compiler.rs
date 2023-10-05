@@ -7,6 +7,9 @@ use parser::{Expression, ParserOutput, Type};
 
 use num_derive::FromPrimitive;
 
+// The number of bytes used to keep track of variables.
+const BYTES_PER_VAR: usize = 2;
+
 /// The `OpCode` used in the bytecode.
 #[derive(FromPrimitive, Clone, Copy)]
 pub enum OpCode {
@@ -17,6 +20,14 @@ pub enum OpCode {
     PopByte,
     PrintInt,
     PrintBool,
+
+    // Variable operators
+    AllocInt,
+    AllocBool,
+    GetInt,
+    GetBool,
+    SetInt,
+    SetBool,
 
     // Arithmetic operators
     MinusInt,
@@ -75,7 +86,12 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
             .expr
             .get_type()
             .expect("any \"None\" should have a parsing error");
-        byte_list.append(&mut generate_bytecode(&parser_output.expr, cli_args[0]));
+        byte_list.append(&mut generate_bytecode(
+            &parser_output.expr,
+            cli_args[0],
+            &mut logs,
+            &mut Vec::new(),
+        ));
         if expr_type != Type::Unit {
             byte_list.push(match expr_type {
                 Type::Int => OpCode::PrintInt,
@@ -100,7 +116,12 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
     }
 }
 
-fn generate_bytecode(expr: &Expression, ptr_size: u8) -> Vec<u8> {
+fn generate_bytecode(
+    expr: &Expression,
+    ptr_size: u8,
+    logs: &mut Vec<Log>,
+    var_list: &mut Vec<Token>,
+) -> Vec<u8> {
     let mut bytecode: Vec<u8> = Vec::new();
     match expr {
         Expression::Binary {
@@ -116,21 +137,23 @@ fn generate_bytecode(expr: &Expression, ptr_size: u8) -> Vec<u8> {
                 *op,
                 right,
                 expr_type.expect("any \"None\" should have a parsing error"),
+                logs,
+                var_list
             );
         }
         Expression::ExpressionList { list } => {
             for expr in list {
-                bytecode.append(&mut generate_bytecode(expr, ptr_size));
+                bytecode.append(&mut generate_bytecode(expr, ptr_size, logs, var_list));
             }
         }
         Expression::Grouping { expr: child, .. } => {
-            bytecode.append(&mut generate_bytecode(child, ptr_size));
+            bytecode.append(&mut generate_bytecode(child, ptr_size, logs, var_list));
         }
         Expression::Literal { token, .. } => {
             handle_literal(&mut bytecode, *token);
         }
         Expression::Statement { expr } => {
-            bytecode.append(&mut generate_bytecode(expr, ptr_size));
+            bytecode.append(&mut generate_bytecode(expr, ptr_size, logs, var_list));
             if expr.get_type() != Some(Type::Unit) {
                 bytecode.push(match expr.get_type() {
                     Some(Type::Int) => OpCode::PopInt,
@@ -142,7 +165,7 @@ fn generate_bytecode(expr: &Expression, ptr_size: u8) -> Vec<u8> {
         Expression::Unary {
             op, expr: child, ..
         } => {
-            bytecode.append(&mut generate_bytecode(child, ptr_size));
+            bytecode.append(&mut generate_bytecode(child, ptr_size, logs, var_list));
             bytecode.push(match op.token_type {
                 TokenType::Minus => OpCode::MinusInt,
                 TokenType::Tilde => OpCode::ComplementInt,
@@ -150,8 +173,36 @@ fn generate_bytecode(expr: &Expression, ptr_size: u8) -> Vec<u8> {
                 _ => panic!("all unary operators should have been accounted for"),
             } as u8);
         }
-        Expression::Unit => {}
-        _ => panic!("all expression types should have been accounted for"),
+        Expression::Variable { token, expr_type, .. // This handles get expressions; set expressions handled with other binary expressions.
+        } => {
+            let index: Option<usize> = var_list.iter().position(|t| t == token);
+            assert!(index.is_some(), "variable should be in var_list");
+            let index: usize = index.expect("checked by if");
+            bytecode.push(match expr_type {
+                Some(Type::Int) => OpCode::GetInt,
+                Some(Type::Bool) => OpCode::GetBool,
+                _ => panic!("all variable types should have been accounted for",)
+            } as u8);
+            bytecode.append(&mut index.to_le_bytes()[0..BYTES_PER_VAR].to_vec());
+        }
+        Expression::VariableDeclaration { initialized_var } => {
+            if let Expression::Variable { token, expr_type, .. } = **initialized_var {
+                if var_list.len() == 1 << (8 * BYTES_PER_VAR) { // Equals rather than greater or equals so that this only happens once.
+                    logs.push( Log { 
+                        log_type: LogType::Error(ErrorType::TooManyVariables(BYTES_PER_VAR)),
+                         line_and_col: None // TODO: Should this contain line and col of declaration of variable that pushes compiler past the limit?
+                    });
+                }
+                var_list.push(token);
+                bytecode.push(match expr_type {
+                    Some(Type::Int) => OpCode::AllocInt,
+                    Some(Type::Bool) => OpCode::AllocBool,
+                    _ => panic!("all variable types should have been accounted for",)
+                } as u8);
+            }
+        }
+        Expression::Type{..} | Expression::Unit => {} // Unit expressions are empty; type expressions shouldn't occur in isolation.
+        Expression::EOF | Expression::Null => panic!("all expression types should have been accounted for"),
     }
     bytecode
 }
@@ -164,10 +215,38 @@ fn handle_binary(
     op: Token,
     right: &Expression,
     expr_type: Type,
+    logs: &mut Vec<Log>,
+    var_list: &mut Vec<Token>,
 ) {
-    bytecode.append(&mut generate_bytecode(left, ptr_size));
-    bytecode.append(&mut generate_bytecode(right, ptr_size));
+    // Variable expressions are weird and need to be handled separately.
+    if op.token_type != TokenType::Equals {
+        bytecode.append(&mut generate_bytecode(left, ptr_size, logs, var_list));
+    }
+    bytecode.append(&mut generate_bytecode(right, ptr_size, logs, var_list));
     match op.token_type {
+        TokenType::Equals => {
+            let mut var: Expression = left.clone();
+            if let Expression::VariableDeclaration { initialized_var } = var {
+                // This should only run if this is a declaration, not a lone variable; otherwise this could be interpreted as a get.
+                bytecode.append(&mut generate_bytecode(left, ptr_size, logs, var_list));
+                var = *initialized_var;
+            }
+            if let Expression::Variable {
+                token, expr_type, ..
+            } = var
+            {
+                let index: Option<usize> = var_list.iter().position(|t| *t == token);
+                assert!(index.is_some(), "variable should be in var_list");
+                let index: usize = index.expect("checked by if");
+                bytecode.push(match expr_type {
+                    Some(Type::Int) => OpCode::SetInt,
+                    Some(Type::Bool) => OpCode::SetBool,
+                    _ => panic!("all variable types should have been accounted for",),
+                } as u8);
+                bytecode.append(&mut index.to_le_bytes()[0..BYTES_PER_VAR].to_vec());
+            }
+        }
+
         TokenType::Plus => {
             bytecode.push(OpCode::AddInt as u8);
         }

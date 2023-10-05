@@ -10,7 +10,7 @@ use std::num::ParseIntError;
 use trie::Node;
 
 /// A token representing an indivisible piece of the source code.
-#[derive(Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub struct Token {
     pub token_type: TokenType,
 
@@ -277,7 +277,9 @@ fn handle_equals(
             *col += 1;
             true
         }
-    } else {false}
+    } else {
+        false
+    }
 }
 
 // Handles inequality and shift tokens.

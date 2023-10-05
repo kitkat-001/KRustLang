@@ -36,7 +36,7 @@ pub enum ErrorType {
     CLIFileToBig(usize),
 
     UnrepresentableIntegerLiteral(String),
-    
+
     ExpectedEOF,
     UnexpectedEOF,
     UnexpectedToken,
@@ -48,6 +48,7 @@ pub enum ErrorType {
     UnnegatedMinimumIntegerLiteral,
 
     ExcessiveBytecode,
+    TooManyVariables(usize),
 
     CantCompile,
 
@@ -134,6 +135,8 @@ impl Display for Log {
                     => format!("the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000_u32),
 
                 ErrorType::ExcessiveBytecode => "could not compile as bytecode was too large.".to_string(),
+                ErrorType::TooManyVariables(bytes)
+                    => format!("there are more than {} variables declared, which is more than the compiler can handle.", 1 << (8 * bytes)),
 
                 ErrorType::CantCompile => {
                     message_is_bold = false;

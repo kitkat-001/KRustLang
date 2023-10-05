@@ -4,8 +4,8 @@
 use krust::cli_reader::{read_command_line, CLIInfo};
 use krust::compiler::{compile, CompilerOutput};
 use krust::lexer::{lex, LexerOutput};
-use krust::util::log::{ErrorType, Log, LogType};
 use krust::parser::{parse, ParserOutput};
+use krust::util::log::{ErrorType, Log, LogType};
 use krust::vm;
 
 fn main() {
@@ -59,8 +59,8 @@ fn run(file_path: &str, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
 #[cfg(test)]
 mod tests {
     use super::run;
-    use krust::vm::test_func::shift_int;
     use krust::util::log;
+    use krust::vm::test_func::shift_int;
 
     use log::all_to_string;
     use std::fs;

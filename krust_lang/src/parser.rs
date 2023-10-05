@@ -55,7 +55,7 @@ pub enum Expression {
         expr_type: Option<Type>,
     },
     Unit,
-    Variable { 
+    Variable {
         initialized: bool,
         token: Token,
         expr_type: Option<Type>,
@@ -100,7 +100,7 @@ impl Expression {
 
             Self::VariableDeclaration { initialized_var } => initialized_var.get_type(),
 
-            Self::EOF | Self::Null | Self::Type{ .. } => None,
+            Self::EOF | Self::Null | Self::Type { .. } => None,
         }
     }
 }
@@ -366,8 +366,13 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput {
     let mut index: usize = 0;
     let tokens: Vec<Token> = lex_output.tokens;
     let mut var_list: HashMap<String, Expression> = HashMap::new();
-    let expr: Expression =
-        get_expression_list(&tokens, &mut logs, &mut index, &lex_output.file_text, &mut var_list);
+    let expr: Expression = get_expression_list(
+        &tokens,
+        &mut logs,
+        &mut index,
+        &lex_output.file_text,
+        &mut var_list,
+    );
     if index < tokens.len() && tokens[index].token_type != TokenType::EOF {
         logs.push(Log {
             log_type: LogType::Error(ErrorType::ExpectedEOF),
@@ -388,7 +393,7 @@ fn get_expression_list(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
-    var_list: &mut HashMap<String, Expression>
+    var_list: &mut HashMap<String, Expression>,
 ) -> Expression {
     let mut list: Vec<Box<Expression>> = Vec::new();
     let mut is_stmt: bool = true;
@@ -409,7 +414,7 @@ fn get_statement(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
-    var_list: &mut HashMap<String, Expression>
+    var_list: &mut HashMap<String, Expression>,
 ) -> Expression {
     if let TokenType::EOF = tokens[*index].token_type {
         return Expression::Unit;
@@ -435,7 +440,7 @@ fn get_expression(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
-    var_list: &mut HashMap<String, Expression>
+    var_list: &mut HashMap<String, Expression>,
 ) -> Expression {
     handle_assignment(tokens, logs, index, source, var_list).unwrap_or(Expression::Null)
 }
@@ -446,7 +451,7 @@ fn get_primary(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
-    var_list: &mut HashMap<String, Expression>
+    var_list: &mut HashMap<String, Expression>,
 ) -> Expression {
     let token: Token = tokens[*index];
     *index += 1;
@@ -473,20 +478,18 @@ fn get_primary(
         }
         TokenType::Int => Expression::Type { value: Type::Int },
         TokenType::Bool => Expression::Type { value: Type::Bool },
-        TokenType::Other => 
-        {
+        TokenType::Other => {
             let key: &String = &token.to_string(source);
-            if var_list.contains_key(key)
-            {
+            if var_list.contains_key(key) {
                 var_list[key].clone()
             } else {
-                Expression::Variable { 
-                    initialized: false, 
-                    token, 
-                    expr_type: None
+                Expression::Variable {
+                    initialized: false,
+                    token,
+                    expr_type: None,
                 }
             }
-        },
+        }
         _ => {
             logs.push(Log {
                 log_type: LogType::Error(ErrorType::UnexpectedToken),
@@ -503,7 +506,7 @@ fn handle_paren(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
-    var_list: &mut HashMap<String, Expression>
+    var_list: &mut HashMap<String, Expression>,
 ) -> Expression {
     if tokens[*index].token_type == TokenType::RightParen {
         logs.push(Log {
@@ -544,35 +547,45 @@ fn handle_assignment(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
-    var_list: &mut HashMap<String, Expression>
+    var_list: &mut HashMap<String, Expression>,
 ) -> Option<Expression> {
     let mut expr: Expression = get_variable_declaration(tokens, logs, index, source, var_list)?;
     let mut var: Expression = expr.clone();
     if let Expression::VariableDeclaration { initialized_var } = var {
         var = *initialized_var;
     }
-    if let Expression::Variable { token, expr_type, .. } = var {
+    if let Expression::Variable {
+        token, expr_type, ..
+    } = var
+    {
         let op = tokens[*index];
-        if let TokenType::Equals = tokens[*index].token_type
-        {
+        if let TokenType::Equals = tokens[*index].token_type {
             *index += 1;
             let mut expr_type: Option<Type> = expr_type;
-            let assignment: Option<Expression> = get_variable_declaration(tokens, logs, index, source, var_list);
+            let assignment: Option<Expression> =
+                get_variable_declaration(tokens, logs, index, source, var_list);
             if let Some(assignment) = assignment.clone() {
                 if assignment.get_type() != expr_type {
                     if assignment.get_type().is_some() && expr_type.is_some() {
                         logs.push(Log {
                             log_type: LogType::Error(ErrorType::InvalidArgsForAssignment(
                                 token.to_string(source),
-                                [expr_type?.to_string(), assignment.get_type()?.to_string()] // Both types are not null here.
+                                [expr_type?.to_string(), assignment.get_type()?.to_string()], // Both types are not null here.
                             )),
-                            line_and_col: Some((op.line, op.col))
+                            line_and_col: Some((op.line, op.col)),
                         });
                     }
                     expr_type = None;
                 }
-            } else { expr_type = None; }
-            expr = Expression::Binary { left: Box::new(expr), op, right: Box::new(assignment?), expr_type };
+            } else {
+                expr_type = None;
+            }
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                op,
+                right: Box::new(assignment?),
+                expr_type,
+            };
         }
     }
     Some(expr)
@@ -584,26 +597,26 @@ fn get_variable_declaration(
     logs: &mut Vec<Log>,
     index: &mut usize,
     source: &String,
-    var_list: &mut HashMap<String, Expression>
+    var_list: &mut HashMap<String, Expression>,
 ) -> Option<Expression> {
     let old_index: usize = *index;
-    let expr:Expression  = get_operators(tokens, logs, index, 0, source, var_list)?;
-    if let Expression::Type{ value } = expr {
+    let expr: Expression = get_operators(tokens, logs, index, 0, source, var_list)?;
+    if let Expression::Type { value } = expr {
         let var: Option<Expression> = get_operators(tokens, logs, index, 0, source, var_list);
         if let Some(var) = var {
             if let Expression::Variable { token, .. } = var {
-                let new_var: Expression = Expression::Variable { 
+                let new_var: Expression = Expression::Variable {
                     initialized: true,
-                    token, 
-                    expr_type: Some(value)
+                    token,
+                    expr_type: Some(value),
                 };
                 var_list.insert(token.to_string(source), new_var.clone());
                 return Some(new_var);
             }
         } else {
-            logs.push(Log{
+            logs.push(Log {
                 log_type: LogType::Error(ErrorType::ExpectedVariableDeclaration(value.to_string())),
-                line_and_col: Some((tokens[old_index].line, tokens[old_index].col))
+                line_and_col: Some((tokens[old_index].line, tokens[old_index].col)),
             });
             return var;
         }
@@ -618,7 +631,7 @@ fn get_operators(
     index: &mut usize,
     precendence: usize,
     source: &String,
-    var_list: &mut HashMap<String, Expression>
+    var_list: &mut HashMap<String, Expression>,
 ) -> Option<Expression> {
     let operator_list: &[OpList] = &OpList::get_op_lists();
     if precendence >= operator_list.len() {
@@ -627,7 +640,8 @@ fn get_operators(
         if operator_list[precendence].contains(tokens[*index].token_type) {
             let op: Token = tokens[*index];
             *index += 1;
-            let expr: Expression = get_operators(tokens, logs, index, precendence, source, var_list)?;
+            let expr: Expression =
+                get_operators(tokens, logs, index, precendence, source, var_list)?;
             let expr_type: Option<Type> = operator_list[precendence].get_output_type(
                 &op,
                 vec![expr.get_type()],
@@ -641,11 +655,13 @@ fn get_operators(
         }
         return get_operators(tokens, logs, index, precendence + 1, source, var_list);
     } else if operator_list[precendence].arg_count()? == 2 {
-        let mut expr: Expression = get_operators(tokens, logs, index, precendence + 1, source, var_list)?;
+        let mut expr: Expression =
+            get_operators(tokens, logs, index, precendence + 1, source, var_list)?;
         while !expr.is_eof() && operator_list[precendence].contains(tokens[*index].token_type) {
             let op: Token = tokens[*index];
             *index += 1;
-            let right: Expression = get_operators(tokens, logs, index, precendence + 1, source, var_list)?;
+            let right: Expression =
+                get_operators(tokens, logs, index, precendence + 1, source, var_list)?;
             let type_list: Vec<Option<Type>> = vec![expr.get_type(), right.get_type()];
             let is_eof: bool = right.is_eof();
             expr = Expression::Binary {
@@ -710,7 +726,11 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
             }
         }
 
-        Expression::EOF | Expression::Null | Expression::Type{..} 
-        | Expression::Unit | Expression::Variable { .. } | Expression::VariableDeclaration { .. }=> {}
+        Expression::EOF
+        | Expression::Null
+        | Expression::Type { .. }
+        | Expression::Unit
+        | Expression::Variable { .. }
+        | Expression::VariableDeclaration { .. } => {}
     }
 }
