@@ -7,8 +7,8 @@ use parser::{Expression, ParserOutput, Type};
 
 use num_derive::FromPrimitive;
 
-// The number of bytes used to keep track of variables.
-const BYTES_PER_VAR: usize = 2;
+/// The number of bytes used to keep track of variables.
+pub const BYTES_PER_VAR: usize = 2;
 
 /// The `OpCode` used in the bytecode.
 #[derive(FromPrimitive, Clone, Copy)]
@@ -173,17 +173,18 @@ fn generate_bytecode(
                 _ => panic!("all unary operators should have been accounted for"),
             } as u8);
         }
-        Expression::Variable { token, expr_type, .. // This handles get expressions; set expressions handled with other binary expressions.
-        } => {
-            let index: Option<usize> = var_list.iter().position(|t| t == token);
-            assert!(index.is_some(), "variable should be in var_list");
-            let index: usize = index.expect("checked by if");
-            bytecode.push(match expr_type {
-                Some(Type::Int) => OpCode::GetInt,
-                Some(Type::Bool) => OpCode::GetBool,
-                _ => panic!("all variable types should have been accounted for",)
-            } as u8);
-            bytecode.append(&mut index.to_le_bytes()[0..BYTES_PER_VAR].to_vec());
+        Expression::Variable { initialized, token, expr_type } => {// This handles get expressions; set expressions handled with other binary expressions.
+            if *initialized {
+                let index: Option<usize> = var_list.iter().position(|t| t == token);
+                assert!(index.is_some(), "variable should be in var_list");
+                let index: usize = index.expect("checked by if");
+                bytecode.push(match expr_type {
+                    Some(Type::Int) => OpCode::GetInt,
+                    Some(Type::Bool) => OpCode::GetBool,
+                    _ => panic!("all variable types should have been accounted for",)
+                } as u8);
+                bytecode.append(&mut index.to_le_bytes()[0..BYTES_PER_VAR].to_vec());
+            }
         }
         Expression::VariableDeclaration { initialized_var } => {
             if let Expression::Variable { token, expr_type, .. } = **initialized_var {
@@ -199,6 +200,8 @@ fn generate_bytecode(
                     Some(Type::Bool) => OpCode::AllocBool,
                     _ => panic!("all variable types should have been accounted for",)
                 } as u8);
+            } else {
+                panic!("variable declarations should always contain variables.")
             }
         }
         Expression::Type{..} | Expression::Unit => {} // Unit expressions are empty; type expressions shouldn't occur in isolation.
@@ -221,8 +224,8 @@ fn handle_binary(
     // Variable expressions are weird and need to be handled separately.
     if op.token_type != TokenType::Equals {
         bytecode.append(&mut generate_bytecode(left, ptr_size, logs, var_list));
+        bytecode.append(&mut generate_bytecode(right, ptr_size, logs, var_list));
     }
-    bytecode.append(&mut generate_bytecode(right, ptr_size, logs, var_list));
     match op.token_type {
         TokenType::Equals => {
             let mut var: Expression = left.clone();
@@ -231,19 +234,22 @@ fn handle_binary(
                 bytecode.append(&mut generate_bytecode(left, ptr_size, logs, var_list));
                 var = *initialized_var;
             }
+            bytecode.append(&mut generate_bytecode(right, ptr_size, logs, var_list));
             if let Expression::Variable {
-                token, expr_type, ..
+                initialized, token, expr_type
             } = var
             {
-                let index: Option<usize> = var_list.iter().position(|t| *t == token);
-                assert!(index.is_some(), "variable should be in var_list");
-                let index: usize = index.expect("checked by if");
-                bytecode.push(match expr_type {
-                    Some(Type::Int) => OpCode::SetInt,
-                    Some(Type::Bool) => OpCode::SetBool,
-                    _ => panic!("all variable types should have been accounted for",),
-                } as u8);
-                bytecode.append(&mut index.to_le_bytes()[0..BYTES_PER_VAR].to_vec());
+                if initialized {
+                    let index: Option<usize> = var_list.iter().position(|t| *t == token);
+                    assert!(index.is_some(), "variable should be in var_list");
+                    let index: usize = index.expect("checked by if");
+                    bytecode.push(match expr_type {
+                        Some(Type::Int) => OpCode::SetInt,
+                        Some(Type::Bool) => OpCode::SetBool,
+                        _ => panic!("all variable types should have been accounted for",),
+                    } as u8);
+                    bytecode.append(&mut index.to_le_bytes()[0..BYTES_PER_VAR].to_vec());
+                }
             }
         }
 

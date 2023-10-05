@@ -379,7 +379,7 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput {
             line_and_col: Some((tokens[index].line, tokens[index].col)),
         });
     }
-    improve_ast(Box::new(expr.clone()), None, &mut logs);
+    improve_ast(Box::new(expr.clone()), None, &mut logs, &lex_output.file_text);
     ParserOutput {
         file_text: lex_output.file_text.clone(),
         expr,
@@ -611,7 +611,7 @@ fn get_variable_declaration(
                     expr_type: Some(value),
                 };
                 var_list.insert(token.to_string(source), new_var.clone());
-                return Some(new_var);
+                return Some(Expression::VariableDeclaration { initialized_var: Box::new(new_var) });
             }
         } else {
             logs.push(Log {
@@ -685,19 +685,19 @@ fn get_operators(
 }
 
 // Simplify and correct the AST.
-fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mut Vec<Log>) {
+fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mut Vec<Log>, source: &String) {
     match *expr {
         Expression::Binary {
             ref left,
             ref right,
             ..
         } => {
-            improve_ast(left.clone(), Some(expr.clone()), logs);
-            improve_ast(right.clone(), Some(expr), logs);
+            improve_ast(left.clone(), Some(expr.clone()), logs, source);
+            improve_ast(right.clone(), Some(expr), logs, source);
         }
         Expression::ExpressionList { ref list } => {
             for element in list {
-                improve_ast(element.clone(), Some(expr.clone()), logs);
+                improve_ast(element.clone(), Some(expr.clone()), logs, source);
             }
         }
         Expression::Grouping {
@@ -707,7 +707,7 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
             expr: ref child, ..
         }
         | Expression::Statement { expr: ref child } => {
-            improve_ast(child.clone(), Some(expr), logs);
+            improve_ast(child.clone(), Some(expr), logs, source);
         }
         Expression::Literal { token, .. } => {
             if token.token_type == TokenType::IntLiteral(0x8000_0000u32) {
@@ -725,12 +725,24 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
                 }
             }
         }
+        Expression::Variable { initialized, token, .. } => {
+            if !initialized {
+                if let Some(parent) = parent {
+                    if let Expression::VariableDeclaration { .. } = *parent {
+                        return;
+                    }
+                }
+                logs.push(Log {
+                    log_type: LogType::Error(ErrorType::ExpectedVariableDeclaration(token.to_string(source))),
+                    line_and_col: Some((token.line, token.col)),
+                });
+            }
+        }
 
         Expression::EOF
         | Expression::Null
         | Expression::Type { .. }
         | Expression::Unit
-        | Expression::Variable { .. }
         | Expression::VariableDeclaration { .. } => {}
     }
 }

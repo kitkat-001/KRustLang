@@ -46,6 +46,7 @@ pub enum ErrorType {
     InvalidArgsForOperator(String, Vec<String>),
     InvalidArgsForAssignment(String, [String; 2]),
     UnnegatedMinimumIntegerLiteral,
+    UndeclaredVariable(String),
 
     ExcessiveBytecode,
     TooManyVariables(usize),
@@ -133,6 +134,8 @@ impl Display for Log {
                     => format!("The variable \"{var}\" has type {}, so it can not be assigned a value of type {}", types[0], types[1]),
                 ErrorType::UnnegatedMinimumIntegerLiteral
                     => format!("the int literal {} must be preceded by a unary \'-\' operator.", 0x8000_0000_u32),
+                ErrorType::UndeclaredVariable(var)
+                    => format!("the variable \"{var}\" has not yet been declared."),
 
                 ErrorType::ExcessiveBytecode => "could not compile as bytecode was too large.".to_string(),
                 ErrorType::TooManyVariables(bytes)
