@@ -37,9 +37,8 @@ pub enum ErrorType {
 
     UnrepresentableIntegerLiteral(String),
 
-    ExpectedEOF,
     UnexpectedEOF,
-    UnexpectedToken,
+    UnexpectedToken(String),
     ExpectedExpressionInParens,
     ExpectedCloseParen,
     ExpectedVariableDeclaration(String),
@@ -119,9 +118,9 @@ impl Display for Log {
                 ErrorType::UnrepresentableIntegerLiteral(token) 
                     => format!("int literal \"{token}\" must be at most {}.", 0x_8000_0000_u32),
 
-                ErrorType::ExpectedEOF => "expected end of file.".to_string(),
                 ErrorType::UnexpectedEOF => "unexpected end of file.".to_string(),
-                ErrorType::UnexpectedToken => "unexpected token.".to_string(),
+                ErrorType::UnexpectedToken(token)
+                     => format!("unexpected token \"{token}\"."),
                 ErrorType::ExpectedExpressionInParens => "expected expression within parentheses.".to_string(),
                 ErrorType::ExpectedCloseParen => "expected \')\' following \'(\'.".to_string(),
                 ErrorType::ExpectedVariableDeclaration(value)

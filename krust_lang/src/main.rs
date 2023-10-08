@@ -175,7 +175,7 @@ mod tests {
             ")",
             &Vec::new(),
             &[
-                "error (line 1:1): unexpected token.".to_string(),
+                "error (line 1:1): unexpected token \")\".".to_string(),
                 "error (line 1:2): unexpected end of file.".to_string(),
                 "error: could not compile due to errors.".to_string(),
             ],
@@ -645,7 +645,7 @@ mod tests {
                 format!("{a}++{b}").as_str(),
                 &Vec::new(),
                 &[
-                    format!("error (line 1:{}): unexpected token.", format!("{a}").chars().count() + 2),
+                    format!("error (line 1:{}): unexpected token \"+\".", format!("{a}").chars().count() + 2),
                     "error: could not compile due to errors.".to_string()
                 ]
             );
