@@ -259,6 +259,16 @@ mod tests {
         );
     }
 
+    #[test]
+    fn vars_of_same_name() {
+        test_code(
+            "vars_of_same_name",
+            format!("int var = 1; bool var = true; var").as_str(),
+            &["true".to_string()],
+            &Vec::new(),
+        );
+    }
+
     proptest! {
         #[test]
         fn random_int(value in proptest::num::i32::ANY) {
@@ -283,7 +293,7 @@ mod tests {
         #[test]
         fn var_bool(value in proptest::bool::ANY) {
             test_code(
-                "var_int",
+                "var_bool",
                 format!("bool var = {value}; var").as_str(),
                 &[format!("{value}")],
                 &Vec::new()
