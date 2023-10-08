@@ -138,7 +138,7 @@ fn generate_bytecode(
                 right,
                 expr_type.expect("any \"None\" should have a parsing error"),
                 logs,
-                var_list
+                var_list,
             );
         }
         Expression::ExpressionList { list } => {
@@ -173,7 +173,12 @@ fn generate_bytecode(
                 _ => panic!("all unary operators should have been accounted for"),
             } as u8);
         }
-        Expression::Variable { initialized, token, expr_type } => {// This handles get expressions; set expressions handled with other binary expressions.
+        Expression::Variable {
+            initialized,
+            token,
+            expr_type,
+        } => {
+            // This handles get expressions; set expressions handled with other binary expressions.
             if *initialized {
                 let index: Option<usize> = var_list.iter().position(|t| t == token);
                 assert!(index.is_some(), "variable should be in var_list");
@@ -181,31 +186,37 @@ fn generate_bytecode(
                 bytecode.push(match expr_type {
                     Some(Type::Int) => OpCode::GetInt,
                     Some(Type::Bool) => OpCode::GetBool,
-                    _ => panic!("all variable types should have been accounted for",)
+                    _ => panic!("all variable types should have been accounted for",),
                 } as u8);
                 bytecode.append(&mut index.to_le_bytes()[0..BYTES_PER_VAR].to_vec());
             }
         }
         Expression::VariableDeclaration { initialized_var } => {
-            if let Expression::Variable { token, expr_type, .. } = **initialized_var {
-                if var_list.len() == 1 << (8 * BYTES_PER_VAR) { // Equals rather than greater or equals so that this only happens once.
-                    logs.push( Log { 
+            if let Expression::Variable {
+                token, expr_type, ..
+            } = **initialized_var
+            {
+                if var_list.len() == 1 << (8 * BYTES_PER_VAR) {
+                    // Equals rather than greater or equals so that this only happens once.
+                    logs.push(Log {
                         log_type: LogType::Error(ErrorType::TooManyVariables(BYTES_PER_VAR)),
-                         line_and_col: None // TODO: Should this contain line and col of declaration of variable that pushes compiler past the limit?
+                        line_and_col: None, // TODO: Should this contain line and col of declaration of variable that pushes compiler past the limit?
                     });
                 }
                 var_list.push(token);
                 bytecode.push(match expr_type {
                     Some(Type::Int) => OpCode::AllocInt,
                     Some(Type::Bool) => OpCode::AllocBool,
-                    _ => panic!("all variable types should have been accounted for",)
+                    _ => panic!("all variable types should have been accounted for",),
                 } as u8);
             } else {
                 panic!("variable declarations should always contain variables.")
             }
         }
-        Expression::Type{..} | Expression::Unit => {} // Unit expressions are empty; type expressions shouldn't occur in isolation.
-        Expression::EOF | Expression::Null => panic!("all expression types should have been accounted for"),
+        Expression::Type { .. } | Expression::Unit => {} // Unit expressions are empty; type expressions shouldn't occur in isolation.
+        Expression::EOF | Expression::Null => {
+            panic!("all expression types should have been accounted for")
+        }
     }
     bytecode
 }
@@ -234,9 +245,16 @@ fn handle_binary(
                 bytecode.append(&mut generate_bytecode(left, ptr_size, logs, var_list));
                 var = *initialized_var;
             }
+            bytecode.push(match expr_type {
+                Type::Int => OpCode::PopInt,
+                Type::Bool => OpCode::PopByte,
+                Type::Unit => panic!("all variable types should have been accounted for",),
+            } as u8);
             bytecode.append(&mut generate_bytecode(right, ptr_size, logs, var_list));
             if let Expression::Variable {
-                initialized, token, expr_type
+                initialized,
+                token,
+                expr_type,
             } = var
             {
                 if initialized {

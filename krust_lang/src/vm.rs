@@ -32,7 +32,7 @@ trait StackType: Copy + Display + Sized {
     fn pop_from_stack(stack: &mut Vec<u8>) -> Option<Self>;
 
     // Reads the value from the stack at a certain index.
-    fn read_from_stack(stack: &Vec<u8>, index: usize) -> Option<Self>;
+    fn read_from_stack(stack: &[u8], index: usize) -> Option<Self>;
 
     // Writes a value to the stack at a certain index. Returns whether or not this is successful.
     fn write_to_stack(&self, stack: &mut Vec<u8>, index: usize) -> bool;
@@ -73,7 +73,7 @@ impl StackType for u8 {
         stack.pop()
     }
 
-    fn read_from_stack(stack: &Vec<u8>, index: usize) -> Option<Self> {
+    fn read_from_stack(stack: &[u8], index: usize) -> Option<Self> {
         stack.get(index).copied()
     }
 
@@ -113,14 +113,12 @@ impl StackType for i32 {
         }
     }
 
-    fn read_from_stack(stack: &Vec<u8>, index: usize) -> Option<Self> {
+    fn read_from_stack(stack: &[u8], index: usize) -> Option<Self> {
         if index + 4 > stack.len() {
             None
         } else {
             let mut bytes: [u8; 4] = [0, 0, 0, 0];
-            for i in 0..4 {
-                bytes[i] = stack[index + i];
-            }
+            bytes.copy_from_slice(&stack[index..(4+index)]);
             Some(Self::from_le_bytes(bytes))
         }
     }
@@ -129,9 +127,7 @@ impl StackType for i32 {
         let result = index + 4 <= stack.len();
         if result {
             let bytes: [u8; 4] = self.to_le_bytes();
-            for i in 0..4 {
-                stack[index + i] = bytes[i];
-            }
+            stack[index..(4+index)].copy_from_slice(&bytes);
         }
         result
     }
@@ -156,7 +152,7 @@ impl StackType for bool {
         stack.pop().map(|value| value != 0)
     }
 
-    fn read_from_stack(stack: &Vec<u8>, index: usize) -> Option<Self> {
+    fn read_from_stack(stack: &[u8], index: usize) -> Option<Self> {
         stack.get(index).copied().map(|value| value != 0)
     }
 
@@ -313,7 +309,15 @@ pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
         index += 1;
 
         if let Some(op) = curr_op {
-            if match_op(op, bytecode, &mut stack, &mut index, &mut output, &mut logs, &mut var_list) {
+            if match_op(
+                op,
+                bytecode,
+                &mut stack,
+                &mut index,
+                &mut output,
+                &mut logs,
+                &mut var_list,
+            ) {
                 return (output, logs);
             }
         } else {
@@ -363,7 +367,7 @@ fn match_op(
     index: &mut usize,
     output: &mut Vec<String>,
     logs: &mut Vec<Log>,
-    var_list: &mut Vec<usize>
+    var_list: &mut Vec<usize>,
 ) -> bool {
     match op {
         OpCode::PushInt => push::<i32>(bytecode, stack, index, logs),
@@ -466,32 +470,43 @@ where
 {
     var_list.push(stack.len());
     <T>::default().push_to_stack(stack);
+    <T>::default().push_to_stack(stack);
 }
 
 // Gets the value of a variable.
-fn get<T>(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>, var_list: &mut Vec<usize>)
-where
+fn get<T>(
+    bytecode: &Vec<u8>,
+    stack: &mut Vec<u8>,
+    index: &mut usize,
+    logs: &mut Vec<Log>,
+    var_list: &mut Vec<usize>,
+) where
     T: StackType,
 {
     let var_index: Option<usize> = get_var_index(bytecode, index);
     if let Some(var_index) = var_index {
         if var_index < var_list.len() {
             let var: Option<T> = T::read_from_stack(stack, var_list[var_index]);
-            if let Some(var) = var { 
-                var.push_to_stack(stack); 
+            if let Some(var) = var {
+                var.push_to_stack(stack);
                 return;
             }
         }
     }
-    logs.push( Log {
+    logs.push(Log {
         log_type: LogType::Error(ErrorType::FatalError),
         line_and_col: None,
     });
 }
 
 // Sets the value of a variable.
-fn set<T>(bytecode: &Vec<u8>, stack: &mut Vec<u8>, index: &mut usize, logs: &mut Vec<Log>, var_list: &mut Vec<usize>)
-where
+fn set<T>(
+    bytecode: &Vec<u8>,
+    stack: &mut Vec<u8>,
+    index: &mut usize,
+    logs: &mut Vec<Log>,
+    var_list: &mut Vec<usize>,
+) where
     T: StackType,
 {
     let var_index: Option<usize> = get_var_index(bytecode, index);
@@ -499,14 +514,14 @@ where
         if var_index < var_list.len() {
             let popped_value: Option<T> = T::pop_from_stack(stack);
             if let Some(value) = popped_value {
-                if value.write_to_stack(stack, var_list[var_index]) { 
+                if value.write_to_stack(stack, var_list[var_index]) {
                     value.push_to_stack(stack);
-                    return; 
+                    return;
                 }
             }
         }
     }
-    logs.push( Log {
+    logs.push(Log {
         log_type: LogType::Error(ErrorType::FatalError),
         line_and_col: None,
     });
@@ -791,9 +806,8 @@ fn handle_error<T>(error: &mut RuntimeError<T>, value: T, detailed_err: bool, lo
     }
 }
 
-// Gets the variable index from the bytecode if availible. 
-fn get_var_index(bytecode: &Vec<u8>, index: &mut usize) -> Option<usize>
-{
+// Gets the variable index from the bytecode if availible.
+fn get_var_index(bytecode: &Vec<u8>, index: &mut usize) -> Option<usize> {
     // TODO: Make sure BYTES_PER_VAR is at most ptr_size.
     if *index + compiler::BYTES_PER_VAR > bytecode.len() {
         None

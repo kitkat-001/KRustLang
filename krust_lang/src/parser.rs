@@ -1,7 +1,7 @@
 //! The module for parsing the tokens and creating the AST.
 use crate::{lexer, util::log};
 use lexer::{LexerOutput, Token, TokenType};
-use log::{ErrorType, Log, LogType};
+use log::{ErrorType, InfoType, Log, LogType};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result};
 
@@ -375,11 +375,18 @@ pub fn parse(lex_output: LexerOutput) -> ParserOutput {
     );
     if index < tokens.len() && tokens[index].token_type != TokenType::EOF {
         logs.push(Log {
-            log_type: LogType::Error(ErrorType::UnexpectedToken(tokens[index].to_string(&lex_output.file_text))),
+            log_type: LogType::Error(ErrorType::UnexpectedToken(
+                tokens[index].to_string(&lex_output.file_text),
+            )),
             line_and_col: Some((tokens[index].line, tokens[index].col)),
         });
     }
-    improve_ast(Box::new(expr.clone()), None, &mut logs, &lex_output.file_text);
+    improve_ast(
+        Box::new(expr.clone()),
+        None,
+        &mut logs,
+        &lex_output.file_text,
+    );
     ParserOutput {
         file_text: lex_output.file_text.clone(),
         expr,
@@ -606,7 +613,9 @@ fn get_variable_declaration(
                     expr_type: Some(value),
                 };
                 var_list.insert(token.to_string(source), new_var.clone());
-                return Some(Expression::VariableDeclaration { initialized_var: Box::new(new_var) });
+                return Some(Expression::VariableDeclaration {
+                    initialized_var: Box::new(new_var),
+                });
             }
         } else {
             logs.push(Log {
@@ -680,7 +689,12 @@ fn get_operators(
 }
 
 // Simplify and correct the AST.
-fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mut Vec<Log>, source: &String) {
+fn improve_ast(
+    expr: Box<Expression>,
+    parent: Option<Box<Expression>>,
+    logs: &mut Vec<Log>,
+    source: &String,
+) {
     match *expr {
         Expression::Binary {
             ref left,
@@ -720,7 +734,9 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
                 }
             }
         }
-        Expression::Variable { initialized, token, .. } => {
+        Expression::Variable {
+            initialized, token, ..
+        } => {
             if !initialized {
                 if let Some(parent) = parent {
                     if let Expression::VariableDeclaration { .. } = *parent {
@@ -728,16 +744,31 @@ fn improve_ast(expr: Box<Expression>, parent: Option<Box<Expression>>, logs: &mu
                     }
                 }
                 logs.push(Log {
-                    log_type: LogType::Error(ErrorType::ExpectedVariableDeclaration(token.to_string(source))),
+                    log_type: LogType::Error(ErrorType::ExpectedVariableDeclaration(
+                        token.to_string(source),
+                    )),
+                    line_and_col: Some((token.line, token.col)),
+                });
+            }
+        }
+        Expression::VariableDeclaration { initialized_var } => {
+            if let Some(parent) = parent {
+                if let Expression::Binary { op, .. } = *parent {
+                    if let TokenType::Equals = op.token_type {
+                        return;
+                    }
+                }
+            }
+
+            // Always true.
+            if let Expression::Variable { token, .. } = *initialized_var {
+                logs.push(Log {
+                    log_type: LogType::Info(InfoType::NewVarNotSet(token.to_string(source))),
                     line_and_col: Some((token.line, token.col)),
                 });
             }
         }
 
-        Expression::EOF
-        | Expression::Null
-        | Expression::Type { .. }
-        | Expression::Unit
-        | Expression::VariableDeclaration { .. } => {}
+        Expression::EOF | Expression::Null | Expression::Type { .. } | Expression::Unit => {}
     }
 }
