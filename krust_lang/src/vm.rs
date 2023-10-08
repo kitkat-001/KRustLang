@@ -118,7 +118,7 @@ impl StackType for i32 {
             None
         } else {
             let mut bytes: [u8; 4] = [0, 0, 0, 0];
-            bytes.copy_from_slice(&stack[index..(4+index)]);
+            bytes.copy_from_slice(&stack[index..(4 + index)]);
             Some(Self::from_le_bytes(bytes))
         }
     }
@@ -127,7 +127,7 @@ impl StackType for i32 {
         let result = index + 4 <= stack.len();
         if result {
             let bytes: [u8; 4] = self.to_le_bytes();
-            stack[index..(4+index)].copy_from_slice(&bytes);
+            stack[index..(4 + index)].copy_from_slice(&bytes);
         }
         result
     }

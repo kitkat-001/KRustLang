@@ -28,7 +28,7 @@ fn main() {
 }
 
 // Runs the code in the file.
-// TODO: Don't save all the printing till the end, instead print when printing should happen.
+// TODO: Print every compiler thing before the program actually runs.
 fn run(file_path: &str, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
     let lex_output: LexerOutput = lex(file_path);
     let parse_output: ParserOutput = parse(lex_output);
@@ -239,10 +239,29 @@ mod tests {
         );
     }
 
+    #[test]
+    fn chained_assignments() {
+        test_code(
+            "chained_assignments",
+            format!("int a = int b = 1; a").as_str(),
+            &["1".to_string()],
+            &Vec::new(),
+        );
+    }
+
+    #[test]
+    fn assignments_as_values() {
+        test_code(
+            "assignments_as_values",
+            format!("(int a = 6) * a").as_str(),
+            &["36".to_string()],
+            &Vec::new(),
+        );
+    }
+
     proptest! {
         #[test]
-        fn random_int(value in proptest::num::i32::ANY)
-        {
+        fn random_int(value in proptest::num::i32::ANY) {
             test_code(
                 "random_int",
                 format!("{value}").as_str(),
@@ -252,8 +271,27 @@ mod tests {
         }
 
         #[test]
-        fn add_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn var_int(value in proptest::num::i32::ANY) {
+            test_code(
+                "var_int",
+                format!("int var = {value}; var").as_str(),
+                &[format!("{value}")],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn var_bool(value in proptest::bool::ANY) {
+            test_code(
+                "var_int",
+                format!("bool var = {value}; var").as_str(),
+                &[format!("{value}")],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn add_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
                 "add_ints",
                 format!("{a}+{b}").as_str(),
@@ -263,8 +301,7 @@ mod tests {
         }
 
         #[test]
-        fn sub_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn sub_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
                 "sub_ints",
                 format!("{a}-{b}").as_str(),
@@ -274,8 +311,7 @@ mod tests {
         }
 
         #[test]
-        fn mul_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn mul_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
                 "mul_ints",
                 format!("{a}*{b}").as_str(),
@@ -292,8 +328,7 @@ mod tests {
                 "Division by zero is invalid",
                 |b| *b != 0
             )
-        )
-        {
+        ) {
             test_code(
                 "div_ints",
                 format!("{a}/{b}").as_str(),
@@ -303,8 +338,7 @@ mod tests {
         }
 
         #[test]
-        fn div_by_zero(a in proptest::num::i32::ANY)
-        {
+        fn div_by_zero(a in proptest::num::i32::ANY) {
             test_code(
                 "div_by_zero",
                 format!("{a}/0").as_str(),
@@ -321,8 +355,7 @@ mod tests {
                 "Modulo by zero is invalid",
                 |b| *b != 0
             )
-        )
-        {
+        ) {
             test_code(
                 "mod_ints",
                 format!("{a}%{b}").as_str(),
@@ -332,8 +365,7 @@ mod tests {
         }
 
         #[test]
-        fn mod_by_zero(a in proptest::num::i32::ANY)
-        {
+        fn mod_by_zero(a in proptest::num::i32::ANY) {
             test_code(
                 "mod_by_zero",
                 format!("{a}%0").as_str(),
@@ -343,8 +375,7 @@ mod tests {
         }
 
         #[test]
-        fn less_ints_eq(a in proptest::num::i32::ANY)
-        {
+        fn less_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
                 "less_ints_eq",
                 format!("{a}<{a}").as_str(),
@@ -354,8 +385,7 @@ mod tests {
         }
 
         #[test]
-        fn less_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn less_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
                 "less_ints_ineq",
@@ -366,8 +396,7 @@ mod tests {
         }
 
         #[test]
-        fn less_equal_ints_eq(a in proptest::num::i32::ANY)
-        {
+        fn less_equal_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
                 "less_equal_ints_eq",
                 format!("{a}<={a}").as_str(),
@@ -377,8 +406,7 @@ mod tests {
         }
 
         #[test]
-        fn less_equal_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn less_equal_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
                 "less_equal_ints_ineq",
@@ -389,8 +417,7 @@ mod tests {
         }
 
         #[test]
-        fn greater_ints_eq(a in proptest::num::i32::ANY)
-        {
+        fn greater_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
                 "greater_ints_eq",
                 format!("{a}>{a}").as_str(),
@@ -400,8 +427,7 @@ mod tests {
         }
 
         #[test]
-        fn greater_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn greater_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
                 "greater_ints_ineq",
@@ -412,8 +438,7 @@ mod tests {
         }
 
         #[test]
-        fn greater_equal_ints_eq(a in proptest::num::i32::ANY)
-        {
+        fn greater_equal_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
                 "greater_equal_ints_eq",
                 format!("{a}>={a}").as_str(),
@@ -423,8 +448,7 @@ mod tests {
         }
 
         #[test]
-        fn greater_equal_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn greater_equal_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
                 "greater_equal_ints_ineq",
@@ -435,8 +459,7 @@ mod tests {
         }
 
         #[test]
-        fn not(a in proptest::bool::ANY)
-        {
+        fn not(a in proptest::bool::ANY) {
             test_code(
                 "not",
                 format!("!{a}").as_str(),
@@ -446,8 +469,7 @@ mod tests {
         }
 
         #[test]
-        fn complement_int(a in proptest::num::i32::ANY)
-        {
+        fn complement_int(a in proptest::num::i32::ANY) {
             test_code(
                 "complement_int",
                 format!("~{a}").as_str(),
@@ -457,8 +479,7 @@ mod tests {
         }
 
         #[test]
-        fn and_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn and_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
                 "and_int",
                 format!("{a} & {b}").as_str(),
@@ -468,8 +489,7 @@ mod tests {
         }
 
         #[test]
-        fn and_bool(a in proptest::bool::ANY, b in proptest::bool::ANY)
-        {
+        fn and_bool(a in proptest::bool::ANY, b in proptest::bool::ANY) {
             test_code(
                 "and_bool",
                 format!("{a} & {b}").as_str(),
@@ -479,8 +499,7 @@ mod tests {
         }
 
         #[test]
-        fn xor_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn xor_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
                 "xor_int",
                 format!("{a} ^ {b}").as_str(),
@@ -490,8 +509,7 @@ mod tests {
         }
 
         #[test]
-        fn xor_bool(a in proptest::bool::ANY, b in proptest::bool::ANY)
-        {
+        fn xor_bool(a in proptest::bool::ANY, b in proptest::bool::ANY) {
             test_code(
                 "xor_bool",
                 format!("{a} ^ {b}").as_str(),
@@ -501,8 +519,7 @@ mod tests {
         }
 
         #[test]
-        fn or_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn or_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
                 "or_int",
                 format!("{a} | {b}").as_str(),
@@ -512,8 +529,7 @@ mod tests {
         }
 
         #[test]
-        fn or_bool(a in proptest::bool::ANY, b in proptest::bool::ANY)
-        {
+        fn or_bool(a in proptest::bool::ANY, b in proptest::bool::ANY) {
             test_code(
                 "or_bool",
                 format!("{a} | {b}").as_str(),
@@ -523,8 +539,7 @@ mod tests {
         }
 
         #[test]
-        fn left_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn left_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
                 "left_shift_ints",
                 format!("{a}<<{b}").as_str(),
@@ -534,8 +549,7 @@ mod tests {
         }
 
         #[test]
-        fn right_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn right_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
                 "right_shift_ints",
                 format!("{a}>>{b}").as_str(),
@@ -545,8 +559,7 @@ mod tests {
         }
 
         #[test]
-        fn equality_ints_eq(a in proptest::num::i32::ANY)
-        {
+        fn equality_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
                 "equality_ints_eq",
                 format!("{a}=={a}").as_str(),
@@ -556,8 +569,7 @@ mod tests {
         }
 
         #[test]
-        fn equality_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn equality_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
                 "equality_ints_ineq",
@@ -568,8 +580,7 @@ mod tests {
         }
 
         #[test]
-        fn equality_bools_eq(a in proptest::bool::ANY)
-        {
+        fn equality_bools_eq(a in proptest::bool::ANY) {
             test_code(
                 "equality_bools_eq",
                 format!("{a}=={a}").as_str(),
@@ -579,8 +590,7 @@ mod tests {
         }
 
         #[test]
-        fn equality_bools_ineq (a in proptest::bool::ANY, b in proptest::bool::ANY)
-        {
+        fn equality_bools_ineq (a in proptest::bool::ANY, b in proptest::bool::ANY) {
             prop_assume!(a != b);
             test_code(
                 "equality_bools_ineq",
@@ -592,8 +602,7 @@ mod tests {
 
 
         #[test]
-        fn inequality_ints_eq(a in proptest::num::i32::ANY)
-        {
+        fn inequality_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
                 "inequality_ints_eq",
                 format!("{a}!={a}").as_str(),
@@ -603,8 +612,7 @@ mod tests {
         }
 
         #[test]
-        fn inequality_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn inequality_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
                 "inequality_ints_ineq",
@@ -615,8 +623,7 @@ mod tests {
         }
 
         #[test]
-        fn inequality_bools_eq(a in proptest::bool::ANY)
-        {
+        fn inequality_bools_eq(a in proptest::bool::ANY) {
             test_code(
                 "inequality_bools_eq",
                 format!("{a}!={a}").as_str(),
@@ -626,8 +633,7 @@ mod tests {
         }
 
         #[test]
-        fn inequality_bools_ineq (a in proptest::bool::ANY, b in proptest::bool::ANY)
-        {
+        fn inequality_bools_ineq (a in proptest::bool::ANY, b in proptest::bool::ANY) {
             prop_assume!(a != b);
             test_code(
                 "inequality_bools_ineq",
@@ -638,8 +644,7 @@ mod tests {
         }
 
         #[test]
-        fn double_add(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY)
-        {
+        fn double_add(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
                 "double_add",
                 format!("{a}++{b}").as_str(),
@@ -656,8 +661,7 @@ mod tests {
             a in proptest::num::i32::ANY,
             b in proptest::num::i32::ANY,
             c in proptest::num::i32::ANY
-        )
-        {
+        ) {
             test_code(
                 "order_of_ops",
                 format!("{a}+{b}*{c}").as_str(),
@@ -672,8 +676,7 @@ mod tests {
             b in proptest::num::i32::ANY,
             c in proptest::num::i32::ANY,
             d in proptest::num::i32::ANY
-        )
-        {
+        ) {
             test_code(
                 "bitwise_order_of_ops",
                 format!("{a} | {b} ^ {c} & {d}").as_str(),
@@ -687,8 +690,7 @@ mod tests {
             a in proptest::num::i32::ANY,
             b in proptest::num::i32::ANY,
             c in proptest::num::i32::ANY
-        )
-        {
+        ) {
             test_code(
                 "mixed_order_of_ops",
                 format!("{a} & {b} + {c}").as_str(),
@@ -703,8 +705,7 @@ mod tests {
             b in proptest::bool::ANY,
             c in proptest::bool::ANY,
             d in proptest::bool::ANY
-        )
-        {
+        ) {
             test_code(
                 "bool_order_of_ops",
                 format!("{a} | {b} ^ {c} & {d}").as_str(),
@@ -719,8 +720,7 @@ mod tests {
             a in proptest::num::i32::ANY,
             b in proptest::num::i32::ANY,
             c in proptest::num::i32::ANY
-        )
-        {
+        ) {
             test_code(
                 "paren_test",
                 format!("{a}*({b}+{c})").as_str(),

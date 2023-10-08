@@ -137,7 +137,7 @@ impl Display for Log {
                     ErrorType::ExpectedExpressionInParens => "expected expression within parentheses.".to_string(),
                     ErrorType::ExpectedCloseParen => "expected \')\' following \'(\'.".to_string(),
                     ErrorType::ExpectedVariableDeclaration(value)
-                        => format!("expected a varaible declaration after {value}"),
+                        => format!("expected a variable declaration for {value}"),
                     ErrorType::InvalidArgsForOperator(op, types)
                         => format!("the operator \"{op}\" has no definition over the type{} {}.", 
                             if types.len() == 1 {""} else {"s"},
