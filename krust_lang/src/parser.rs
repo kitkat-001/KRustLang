@@ -428,10 +428,15 @@ fn get_statement(
     }
 
     let mut expr: Expression = get_expression(tokens, logs, index, source, var_list);
+    if let Expression::VariableDeclaration { initialized_var } = &expr {
+        if let Expression::Variable {token, ..} = **initialized_var {
+            var_list.insert(token.to_string(source), *initialized_var.clone());
+        }
+    }
+
     if let TokenType::EOF = tokens[*index - 1].token_type {
         return expr;
     }
-
     if let TokenType::Semicolon = tokens[*index].token_type {
         expr = Expression::Statement {
             expr: Box::new(expr),
@@ -558,8 +563,10 @@ fn handle_assignment(
 ) -> Option<Expression> {
     let mut expr: Expression = get_variable_declaration(tokens, logs, index, source, var_list)?;
     let mut var: Expression = expr.clone();
+    let mut is_declaration: bool = false;
     if let Expression::VariableDeclaration { initialized_var } = var {
         var = *initialized_var;
+        is_declaration = true;
     }
     if let Expression::Variable {
         token, expr_type, ..
@@ -588,8 +595,12 @@ fn handle_assignment(
                 right: Box::new(assignment),
                 expr_type,
             };
+            if is_declaration {
+                var_list.insert(token.to_string(source), var.clone());
+            }
         }
     }
+    
     Some(expr)
 }
 
@@ -612,7 +623,6 @@ fn get_variable_declaration(
                     token,
                     expr_type: Some(value),
                 };
-                var_list.insert(token.to_string(source), new_var.clone());
                 return Some(Expression::VariableDeclaration {
                     initialized_var: Box::new(new_var),
                 });

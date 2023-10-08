@@ -269,6 +269,16 @@ mod tests {
         );
     }
 
+    #[test]
+    fn chained_vars_of_same_name() {
+        test_code(
+            "chained_vars_of_same_name",
+            format!("int var = 1; int var = var + 2; var").as_str(),
+            &["3".to_string()],
+            &Vec::new(),
+        );
+    }
+
     proptest! {
         #[test]
         fn random_int(value in proptest::num::i32::ANY) {
