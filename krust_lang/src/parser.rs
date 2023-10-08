@@ -10,7 +10,7 @@ use std::fmt::{Display, Formatter, Result};
 pub enum Type {
     Int,
     Bool,
-    Unit, // Nothing type.
+    Void, // Nothing type.
 }
 
 impl Display for Type {
@@ -18,7 +18,7 @@ impl Display for Type {
         match self {
             Self::Int => write!(f, "\"int\""),
             Self::Bool => write!(f, "\"bool\""),
-            Self::Unit => write!(f, "\"()\""),
+            Self::Void => write!(f, "\"void\""),
         }
     }
 }
@@ -54,7 +54,7 @@ pub enum Expression {
         expr: Box<Expression>,
         expr_type: Option<Type>,
     },
-    Unit,
+    Void,
     Variable {
         initialized: bool,
         token: Token,
@@ -92,11 +92,11 @@ impl Expression {
             | Self::Variable { expr_type, .. } => *expr_type,
 
             Self::ExpressionList { list } => match list.last() {
-                None => Some(Type::Unit),
+                None => Some(Type::Void),
                 Some(expr) => expr.get_type(),
             },
 
-            Self::Statement { .. } | Self::Unit => Some(Type::Unit),
+            Self::Statement { .. } | Self::Void => Some(Type::Void),
 
             Self::VariableDeclaration { initialized_var } => initialized_var.get_type(),
 
@@ -424,7 +424,7 @@ fn get_statement(
     var_list: &mut HashMap<String, Expression>,
 ) -> Expression {
     if let TokenType::EOF = tokens[*index].token_type {
-        return Expression::Unit;
+        return Expression::Void;
     }
 
     let mut expr: Expression = get_expression(tokens, logs, index, source, var_list);
@@ -779,6 +779,6 @@ fn improve_ast(
             }
         }
 
-        Expression::EOF | Expression::Null | Expression::Type { .. } | Expression::Unit => {}
+        Expression::EOF | Expression::Null | Expression::Type { .. } | Expression::Void => {}
     }
 }

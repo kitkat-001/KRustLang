@@ -92,11 +92,11 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
             &mut logs,
             &mut Vec::new(),
         ));
-        if expr_type != Type::Unit {
+        if expr_type != Type::Void {
             byte_list.push(match expr_type {
                 Type::Int => OpCode::PrintInt,
                 Type::Bool => OpCode::PrintBool,
-                Type::Unit => panic!("Should have been caught by above if statement."),
+                Type::Void => panic!("Should have been caught by above if statement."),
             } as u8);
         }
         if u32::from(cli_args[0]) * 8 < usize::BITS && byte_list.len() >= 1 << (cli_args[0] * 8) {
@@ -154,7 +154,7 @@ fn generate_bytecode(
         }
         Expression::Statement { expr } => {
             bytecode.append(&mut generate_bytecode(expr, ptr_size, logs, var_list));
-            if expr.get_type() != Some(Type::Unit) {
+            if expr.get_type() != Some(Type::Void) {
                 bytecode.push(match expr.get_type() {
                     Some(Type::Int) => OpCode::PopInt,
                     Some(Type::Bool) => OpCode::PopByte,
@@ -213,7 +213,7 @@ fn generate_bytecode(
                 panic!("variable declarations should always contain variables.")
             }
         }
-        Expression::Type { .. } | Expression::Unit => {} // Unit expressions are empty; type expressions shouldn't occur in isolation.
+        Expression::Type { .. } | Expression::Void => {} // Void expressions are empty; type expressions shouldn't occur in isolation.
         Expression::EOF | Expression::Null => {
             panic!("all expression types should have been accounted for")
         }
@@ -248,7 +248,7 @@ fn handle_binary(
             bytecode.push(match expr_type {
                 Type::Int => OpCode::PopInt,
                 Type::Bool => OpCode::PopByte,
-                Type::Unit => panic!("all variable types should have been accounted for",),
+                Type::Void => panic!("all variable types should have been accounted for",),
             } as u8);
             bytecode.append(&mut generate_bytecode(right, ptr_size, logs, var_list));
             if let Expression::Variable {
@@ -308,21 +308,21 @@ fn handle_binary(
             bytecode.push(match expr_type {
                 Type::Int => OpCode::AndInt,
                 Type::Bool => OpCode::AndByte,
-                Type::Unit => panic!("Invalid type for this operation"),
+                Type::Void => panic!("Invalid type for this operation"),
             } as u8);
         }
         TokenType::Caret => {
             bytecode.push(match expr_type {
                 Type::Int => OpCode::XorInt,
                 Type::Bool => OpCode::XorByte,
-                Type::Unit => panic!("Invalid type for this operation"),
+                Type::Void => panic!("Invalid type for this operation"),
             } as u8);
         }
         TokenType::Bar => {
             bytecode.push(match expr_type {
                 Type::Int => OpCode::OrInt,
                 Type::Bool => OpCode::OrByte,
-                Type::Unit => panic!("Invalid type for this operation"),
+                Type::Void => panic!("Invalid type for this operation"),
             } as u8);
         }
 
