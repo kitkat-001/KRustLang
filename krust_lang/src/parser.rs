@@ -429,7 +429,7 @@ fn get_statement(
 
     let mut expr: Expression = get_expression(tokens, logs, index, source, var_list);
     if let Expression::VariableDeclaration { initialized_var } = &expr {
-        if let Expression::Variable {token, ..} = **initialized_var {
+        if let Expression::Variable { token, .. } = **initialized_var {
             var_list.insert(token.to_string(source), *initialized_var.clone());
         }
     }
@@ -600,7 +600,7 @@ fn handle_assignment(
             }
         }
     }
-    
+
     Some(expr)
 }
 

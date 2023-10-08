@@ -279,6 +279,19 @@ mod tests {
         );
     }
 
+    #[test]
+    fn no_declaration() {
+        test_code(
+            "no_declaration",
+            format!("var = 1;").as_str(),
+            &Vec::new(),
+            &[
+                "error (line 1:1): expected a variable declaration for var".to_string(),
+                "error: could not compile due to errors.".to_string(),
+            ],
+        );
+    }
+
     proptest! {
         #[test]
         fn random_int(value in proptest::num::i32::ANY) {
