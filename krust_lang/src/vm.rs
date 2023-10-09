@@ -291,7 +291,6 @@ implIntegralType!(u8);
 implIntegralType!(i32);
 
 /// Runs the bytecode.
-#[must_use]
 pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
     let mut output: Vec<String> = Vec::new();
     let mut logs: Vec<Log> = Vec::new();

@@ -44,6 +44,7 @@ fn run(file_path: &str, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
             log_type: LogType::Error(ErrorType::CantCompile),
             line_and_col: None,
         });
+        eprintln!("{}", logs.iter().last().expect("list was just pushed to"));
     }
 
     (output, logs)

@@ -89,20 +89,11 @@ fn create_compiled_exe(bytecode: &Vec<u8>, file_path: &str) -> Result<(), Error>
 // Creates the rust code that can be compiled into an executable.
 fn create_code(bytecode: &Vec<u8>) -> String {
     format!(
-        "use krust::log::Log;
-use krust::vm;
+        "use krust::vm;
     
 fn main(){{
     let bytecode: Vec<u8> = vec!{bytecode:?};
-    let out_err: (Vec<String>, Vec<Log>) = vm::run(&bytecode);
-    for string in out_err.0
-    {{
-        println!(\"{{}}\", string);
-    }}
-    for log in out_err.1
-    {{
-        eprintln!(\"{{}}\", log);
-    }}
+    vm::run(&bytecode);
 }}"
     )
 }
