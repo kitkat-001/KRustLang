@@ -16,14 +16,7 @@ fn main() {
 
     if cli_output.0.is_some() {
         let cli_output: CLIInfo = cli_output.0.expect("checked by if statement");
-        let output: (Vec<String>, Vec<Log>) =
-            run(cli_output.file_path.as_str(), cli_output.cli_args);
-        for string in output.0 {
-            println!("{string}");
-        }
-        for string in output.1 {
-            eprintln!("{string}");
-        }
+        run(cli_output.file_path.as_str(), cli_output.cli_args);
     }
 }
 
@@ -37,6 +30,7 @@ fn run(file_path: &str, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
     let mut logs: Vec<Log> = Vec::new();
 
     for log in compiler_output.logs {
+        eprintln!("{log}");
         logs.push(log);
     }
     if let Some(bytecode) = compiler_output.bytecode {

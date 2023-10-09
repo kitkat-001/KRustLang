@@ -318,6 +318,9 @@ pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
                 &mut logs,
                 &mut var_list,
             ) {
+                for log in &logs {
+                    eprintln!("{log}");
+                }
                 return (output, logs);
             }
         } else {
@@ -454,6 +457,7 @@ where
 {
     let value: Option<T> = T::pop_from_stack(stack);
     if let Some(value) = value {
+        println!("{value}");
         output.push(format!("{value}"));
     } else {
         logs.push(Log {
