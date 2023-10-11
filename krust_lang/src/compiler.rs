@@ -141,6 +141,9 @@ fn generate_bytecode(
                 var_list,
             );
         }
+        Expression::Cast { .. }  | Expression::CastOp { .. } => {
+            todo!();
+        }
         Expression::ExpressionList { list } => {
             for expr in list {
                 bytecode.append(&mut generate_bytecode(expr, ptr_size, logs, var_list));

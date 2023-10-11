@@ -49,6 +49,8 @@ pub enum ErrorType {
     ExpectedExpressionInParens,
     ExpectedCloseParen,
     ExpectedVariableDeclaration(String),
+    InvalidTypesForCast(String, String),
+    ExpectedExpressionAfterCast(String),
     InvalidArgsForOperator(String, Vec<String>),
     InvalidArgsForAssignment(String, [String; 2]),
     UnnegatedMinimumIntegerLiteral,
@@ -138,6 +140,14 @@ impl Display for Log {
                     ErrorType::ExpectedCloseParen => "expected \')\' following \'(\'.".to_string(),
                     ErrorType::ExpectedVariableDeclaration(value)
                         => format!("expected a variable declaration for {value}"),
+                    ErrorType::InvalidTypesForCast(type_in, type_out)
+                        => format!("the type {type_in} can not be cast to type {type_out}"),
+                    ErrorType::ExpectedExpressionAfterCast(value)
+                        => format!(
+                            "expected an expression after cast \"({})\"", 
+                            value.trim_matches('\"')
+                                .to_string()
+                        ),
                     ErrorType::InvalidArgsForOperator(op, types)
                         => format!("the operator \"{op}\" has no definition over the type{} {}.", 
                             if types.len() == 1 {""} else {"s"},

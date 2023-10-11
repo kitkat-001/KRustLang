@@ -13,6 +13,16 @@ pub enum Type {
     Void, // Nothing type.
 }
 
+impl Type {
+    /// Get the types that this type can be casted to.
+    fn valid_casts(&self) -> Vec<Self> {
+        match self {
+            Self::Int | Self::Bool => vec![Self::Int, Self::Bool],
+            Self::Void => vec![Self::Void]
+        }
+    }
+}
+
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
@@ -31,6 +41,13 @@ pub enum Expression {
         op: Token,
         right: Box<Expression>,
         expr_type: Option<Type>,
+    },
+    Cast {
+        expr_type: Option<Type>,
+        expr: Box<Expression>,
+    },
+    CastOp {
+        expr_type: Type,
     },
     ExpressionList {
         list: Vec<Box<Expression>>,
@@ -86,10 +103,13 @@ impl Expression {
     pub fn get_type(&self) -> Option<Type> {
         match &self {
             Self::Binary { expr_type, .. }
+            | Self::Cast { expr_type, .. }
             | Self::Grouping { expr_type, .. }
             | Self::Literal { expr_type, .. }
             | Self::Unary { expr_type, .. }
             | Self::Variable { expr_type, .. } => *expr_type,
+
+            Self::CastOp { expr_type } => Some(*expr_type),
 
             Self::ExpressionList { list } => match list.last() {
                 None => Some(Type::Void),
@@ -613,7 +633,7 @@ fn get_variable_declaration(
     var_list: &mut HashMap<String, Expression>,
 ) -> Option<Expression> {
     let old_index: usize = *index;
-    let expr: Expression = get_operators(tokens, logs, index, 0, source, var_list)?;
+    let expr: Expression = get_cast(tokens, logs, index, source, var_list)?;
     if let Expression::Type { value } = expr {
         let var: Option<Expression> = get_operators(tokens, logs, index, 0, source, var_list);
         if let Some(var) = var {
@@ -636,6 +656,52 @@ fn get_variable_declaration(
         }
     }
     Some(expr)
+}
+
+// Handle casts.
+fn get_cast(
+    tokens: &Vec<Token>,
+    logs: &mut Vec<Log>,
+    index: &mut usize,
+    source: &String,
+    var_list: &mut HashMap<String, Expression>,
+) -> Option<Expression> {
+    let old_index: usize = *index;
+    let expr: Expression = get_operators(tokens, logs, index, 0, source, var_list)?;
+    if let Expression::CastOp { expr_type } = expr {
+        let right: Option<Expression> = get_operators(tokens, logs, index, 0, source, var_list);
+        if let Some(right) = right {
+            Some(Expression::Cast { 
+                expr_type: if right.get_type().is_some() 
+                    && expr_type.valid_casts().contains(
+                        &right.get_type().expect("checked by if")
+                    ) {
+                        Some(expr_type)
+                    } else {
+                        logs.push(Log {
+                            log_type: LogType::Error(ErrorType::InvalidTypesForCast(
+                                expr_type.to_string(), 
+                                match right.get_type() {
+                                    Option::Some(t) => t.to_string(),
+                                    Option::None => "none".to_string(),
+                                }
+                            )),
+                            line_and_col: Some((tokens[old_index].line, tokens[old_index].col)),
+                        });
+                        None
+                    },
+                expr: Box::new(right),
+            })
+        } else {
+            logs.push(Log {
+                log_type: LogType::Error(ErrorType::ExpectedExpressionAfterCast(expr_type.to_string())),
+                line_and_col: Some((tokens[old_index].line, tokens[old_index].col)),
+            });
+            right
+        }
+    } else {
+        Some(expr)
+    }
 }
 
 // Gets an expression based on the operator precedence.
@@ -779,6 +845,11 @@ fn improve_ast(
             }
         }
 
-        Expression::EOF | Expression::Null | Expression::Type { .. } | Expression::Void => {}
+        Expression::Cast { .. } 
+        | Expression::CastOp{ .. } 
+        | Expression::EOF 
+        | Expression::Null 
+        | Expression::Type { .. } 
+        | Expression::Void => {}
     }
 }
