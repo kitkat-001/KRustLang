@@ -15,10 +15,10 @@ pub enum Type {
 
 impl Type {
     /// Get the types that this type can be casted to.
-    fn valid_casts(&self) -> Vec<Self> {
+    fn valid_casts(self) -> Vec<Self> {
         match self {
             Self::Int | Self::Bool => vec![Self::Int, Self::Bool],
-            Self::Void => vec![Self::Void]
+            Self::Void => vec![Self::Void],
         }
     }
 }
@@ -671,30 +671,33 @@ fn get_cast(
     if let Expression::CastOp { expr_type } = expr {
         let right: Option<Expression> = get_operators(tokens, logs, index, 0, source, var_list);
         if let Some(right) = right {
-            Some(Expression::Cast { 
-                expr_type: if right.get_type().is_some() 
-                    && expr_type.valid_casts().contains(
-                        &right.get_type().expect("checked by if")
-                    ) {
-                        Some(expr_type)
-                    } else {
-                        logs.push(Log {
-                            log_type: LogType::Error(ErrorType::InvalidTypesForCast(
-                                expr_type.to_string(), 
-                                match right.get_type() {
-                                    Option::Some(t) => t.to_string(),
-                                    Option::None => "none".to_string(),
-                                }
-                            )),
-                            line_and_col: Some((tokens[old_index].line, tokens[old_index].col)),
-                        });
-                        None
-                    },
+            Some(Expression::Cast {
+                expr_type: if right.get_type().is_some()
+                    && expr_type
+                        .valid_casts()
+                        .contains(&right.get_type().expect("checked by if"))
+                {
+                    Some(expr_type)
+                } else {
+                    logs.push(Log {
+                        log_type: LogType::Error(ErrorType::InvalidTypesForCast(
+                            expr_type.to_string(),
+                            match right.get_type() {
+                                Option::Some(t) => t.to_string(),
+                                Option::None => "none".to_string(),
+                            },
+                        )),
+                        line_and_col: Some((tokens[old_index].line, tokens[old_index].col)),
+                    });
+                    None
+                },
                 expr: Box::new(right),
             })
         } else {
             logs.push(Log {
-                log_type: LogType::Error(ErrorType::ExpectedExpressionAfterCast(expr_type.to_string())),
+                log_type: LogType::Error(ErrorType::ExpectedExpressionAfterCast(
+                    expr_type.to_string(),
+                )),
                 line_and_col: Some((tokens[old_index].line, tokens[old_index].col)),
             });
             right
@@ -845,11 +848,11 @@ fn improve_ast(
             }
         }
 
-        Expression::Cast { .. } 
-        | Expression::CastOp{ .. } 
-        | Expression::EOF 
-        | Expression::Null 
-        | Expression::Type { .. } 
+        Expression::Cast { .. }
+        | Expression::CastOp { .. }
+        | Expression::EOF
+        | Expression::Null
+        | Expression::Type { .. }
         | Expression::Void => {}
     }
 }

@@ -29,6 +29,10 @@ pub enum OpCode {
     SetInt,
     SetBool,
 
+    // Casting/conversion operators
+    IntToBool,
+    BoolToInt,
+
     // Arithmetic operators
     MinusInt,
     AddInt,
@@ -141,8 +145,28 @@ fn generate_bytecode(
                 var_list,
             );
         }
-        Expression::Cast { .. }  | Expression::CastOp { .. } => {
-            todo!();
+        Expression::Cast { expr_type, expr } => {
+            bytecode.append(&mut generate_bytecode(expr, ptr_size, logs, var_list));
+            let cast_op: Option<OpCode> = match expr.get_type() {
+                Some(Type::Int) => match expr_type {
+                    Some(Type::Int) => None,
+                    Some(Type::Bool) => Some(OpCode::IntToBool),
+                    _ => panic!("no other types should be possible."),
+                },
+                Some(Type::Bool) => match expr_type {
+                    Some(Type::Int) => Some(OpCode::BoolToInt),
+                    Some(Type::Bool) => None,
+                    _ => panic!("no other types should be possible."),
+                },
+                Some(Type::Void) => match expr_type {
+                    Some(Type::Void) => None,
+                    _ => panic!("no other types should be possible."),
+                },
+                None => panic!("should not be able to cast from a None type"),
+            };
+            if let Some(cast_op) = cast_op {
+                bytecode.push(cast_op as u8);
+            }
         }
         Expression::ExpressionList { list } => {
             for expr in list {
@@ -216,7 +240,8 @@ fn generate_bytecode(
                 panic!("variable declarations should always contain variables.")
             }
         }
-        Expression::Type { .. } | Expression::Void => {} // Void expressions are empty; type expressions shouldn't occur in isolation.
+        // Void expressions are empty; cast and type expressions shouldn't occur in isolation.
+        Expression::CastOp { .. } | Expression::Type { .. } | Expression::Void => {}
         Expression::EOF | Expression::Null => {
             panic!("all expression types should have been accounted for")
         }

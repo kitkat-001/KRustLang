@@ -291,6 +291,7 @@ implIntegralType!(u8);
 implIntegralType!(i32);
 
 /// Runs the bytecode.
+#[allow(clippy::must_use_candidate)] // Compiling using krustc requires that this not be annotated as must use.
 pub fn run(bytecode: &Vec<u8>) -> (Vec<String>, Vec<Log>) {
     let mut output: Vec<String> = Vec::new();
     let mut logs: Vec<Log> = Vec::new();
@@ -415,6 +416,8 @@ fn match_op(
         OpCode::EqualityByte => equality::<u8>(stack, logs),
         OpCode::InequalityInt => inequality::<i32>(stack, logs),
         OpCode::InequalityByte => inequality::<u8>(stack, logs),
+
+        _ => todo!(),
     };
     is_error(logs)
 }

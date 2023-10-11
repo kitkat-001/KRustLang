@@ -73,6 +73,7 @@ pub struct Log {
 }
 
 impl Display for Log {
+    #[allow(clippy::too_many_lines)] // Necessary for all the different log types.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         if let LogType::Error(error_type) = self.log_type.clone() {
             if error_type == ErrorType::FatalError {
@@ -146,7 +147,6 @@ impl Display for Log {
                         => format!(
                             "expected an expression after cast \"({})\"", 
                             value.trim_matches('\"')
-                                .to_string()
                         ),
                     ErrorType::InvalidArgsForOperator(op, types)
                         => format!("the operator \"{op}\" has no definition over the type{} {}.", 
