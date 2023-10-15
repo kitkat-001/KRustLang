@@ -319,6 +319,26 @@ mod tests {
         }
 
         #[test]
+        fn int_to_bool(value in proptest::num::i32::ANY) {
+            test_code(
+                "int_to_bool",
+                format!("(bool) {value}").as_str(),
+                &[format!("{}", value != 0)],
+                &Vec::new()
+            );
+        }
+
+        #[test]
+        fn bool_to_int(value in proptest::bool::ANY) {
+            test_code(
+                "bool_to_int",
+                format!("(int) {value}").as_str(),
+                &[format!("{}", value as i32)],
+                &Vec::new()
+            );
+        }
+
+        #[test]
         fn add_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
                 "add_ints",

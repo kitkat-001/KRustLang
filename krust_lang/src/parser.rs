@@ -6,11 +6,12 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result};
 
 /// The types in this language.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Type {
     Int,
     Bool,
     Void, // Nothing type.
+    Type,
 }
 
 impl Type {
@@ -19,6 +20,7 @@ impl Type {
         match self {
             Self::Int | Self::Bool => vec![Self::Int, Self::Bool],
             Self::Void => vec![Self::Void],
+            Self::Type => vec![Self::Type],
         }
     }
 }
@@ -29,12 +31,13 @@ impl Display for Type {
             Self::Int => write!(f, "\"int\""),
             Self::Bool => write!(f, "\"bool\""),
             Self::Void => write!(f, "\"void\""),
+            Self::Type => write!(f, "\"type\""),
         }
     }
 }
 
 /// An enum represetning the possible types of expressions.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Expression {
     Binary {
         left: Box<Expression>,
@@ -118,9 +121,11 @@ impl Expression {
 
             Self::Statement { .. } | Self::Void => Some(Type::Void),
 
+            Self::Type { .. } => Some(Type::Type),
+
             Self::VariableDeclaration { initialized_var } => initialized_var.get_type(),
 
-            Self::EOF | Self::Null | Self::Type { .. } => None,
+            Self::EOF | Self::Null => None,
         }
     }
 }
@@ -560,7 +565,6 @@ fn handle_paren(
         return expr;
     }
 
-    let expr: Box<Expression> = Box::new(expr);
     if tokens[*index].token_type == TokenType::RightParen {
         *index += 1;
     } else {
@@ -569,8 +573,13 @@ fn handle_paren(
             line_and_col: Some((tokens[*index].line, tokens[*index].col)),
         });
     }
-    let expr_type: Option<Type> = expr.get_type();
-    Expression::Grouping { expr, expr_type }
+    if let Expression::Type { value } = expr {
+        Expression::CastOp { expr_type: value }
+    } else {
+        let expr: Box<Expression> = Box::new(expr);
+        let expr_type: Option<Type> = expr.get_type();
+        Expression::Grouping { expr, expr_type }
+    }
 }
 
 // Handles variable assignment.
@@ -635,6 +644,7 @@ fn get_variable_declaration(
     let old_index: usize = *index;
     let expr: Expression = get_cast(tokens, logs, index, source, var_list)?;
     if let Expression::Type { value } = expr {
+        if tokens[*index].token_type == TokenType::RightParen { return Some(expr); }
         let var: Option<Expression> = get_operators(tokens, logs, index, 0, source, var_list);
         if let Some(var) = var {
             if let Expression::Variable { token, .. } = var {

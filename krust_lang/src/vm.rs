@@ -387,6 +387,9 @@ fn match_op(
         OpCode::SetInt => set::<i32>(bytecode, stack, index, logs, var_list),
         OpCode::SetBool => set::<bool>(bytecode, stack, index, logs, var_list),
 
+        OpCode::IntToBool => cast_int_to_bool(stack, logs),
+        OpCode::BoolToInt => cast_bool_to_int(stack),
+
         OpCode::MinusInt => minus::<i32>(stack, logs),
         OpCode::AddInt => add::<i32>(stack, logs),
         OpCode::SubtractInt => subtract::<i32>(stack, logs),
@@ -416,8 +419,6 @@ fn match_op(
         OpCode::EqualityByte => equality::<u8>(stack, logs),
         OpCode::InequalityInt => inequality::<i32>(stack, logs),
         OpCode::InequalityByte => inequality::<u8>(stack, logs),
-
-        _ => todo!(),
     };
     is_error(logs)
 }
@@ -531,6 +532,26 @@ fn set<T>(
         log_type: LogType::Error(ErrorType::FatalError),
         line_and_col: None,
     });
+}
+
+// Converts an int to a boolean.
+fn cast_int_to_bool(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
+    for _i in 0..3 {
+        if stack.pop().is_none() {
+            logs.push(Log {
+                log_type: LogType::Error(ErrorType::FatalError),
+                line_and_col: None,
+            });
+            return;
+        }
+    }
+}
+
+// Converts a boolean to an int.
+fn cast_bool_to_int(stack: &mut Vec<u8>) {
+    for _i in 0..3 {
+        stack.push(0);
+    }
 }
 
 // Gets the negative of an value.

@@ -96,11 +96,11 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
             &mut logs,
             &mut Vec::new(),
         ));
-        if expr_type != Type::Void {
+        if ![Type::Void, Type::Type].contains(&expr_type) {
             byte_list.push(match expr_type {
                 Type::Int => OpCode::PrintInt,
                 Type::Bool => OpCode::PrintBool,
-                Type::Void => panic!("Should have been caught by above if statement."),
+                Type::Void | Type::Type => panic!("Should have been caught by above if statement."),
             } as u8);
         }
         if u32::from(cli_args[0]) * 8 < usize::BITS && byte_list.len() >= 1 << (cli_args[0] * 8) {
@@ -160,6 +160,10 @@ fn generate_bytecode(
                 },
                 Some(Type::Void) => match expr_type {
                     Some(Type::Void) => None,
+                    _ => panic!("no other types should be possible."),
+                },
+                Some(Type::Type) => match expr_type {
+                    Some(Type::Type) => None,
                     _ => panic!("no other types should be possible."),
                 },
                 None => panic!("should not be able to cast from a None type"),
@@ -276,7 +280,7 @@ fn handle_binary(
             bytecode.push(match expr_type {
                 Type::Int => OpCode::PopInt,
                 Type::Bool => OpCode::PopByte,
-                Type::Void => panic!("all variable types should have been accounted for",),
+                Type::Void | Type::Type => panic!("all variable types should have been accounted for",),
             } as u8);
             bytecode.append(&mut generate_bytecode(right, ptr_size, logs, var_list));
             if let Expression::Variable {
@@ -336,21 +340,21 @@ fn handle_binary(
             bytecode.push(match expr_type {
                 Type::Int => OpCode::AndInt,
                 Type::Bool => OpCode::AndByte,
-                Type::Void => panic!("Invalid type for this operation"),
+                Type::Void | Type::Type => panic!("Invalid type for this operation"),
             } as u8);
         }
         TokenType::Caret => {
             bytecode.push(match expr_type {
                 Type::Int => OpCode::XorInt,
                 Type::Bool => OpCode::XorByte,
-                Type::Void => panic!("Invalid type for this operation"),
+                Type::Void | Type::Type => panic!("Invalid type for this operation"),
             } as u8);
         }
         TokenType::Bar => {
             bytecode.push(match expr_type {
                 Type::Int => OpCode::OrInt,
                 Type::Bool => OpCode::OrByte,
-                Type::Void => panic!("Invalid type for this operation"),
+                Type::Void | Type::Type => panic!("Invalid type for this operation"),
             } as u8);
         }
 

@@ -10,7 +10,7 @@ use std::num::ParseIntError;
 use trie::Node;
 
 /// A token representing an indivisible piece of the source code.
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Token {
     pub token_type: TokenType,
 
@@ -23,7 +23,7 @@ pub struct Token {
 }
 
 /// The allowed types of tokens.
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum TokenType {
     // Single character tokens.
     Plus,
