@@ -750,6 +750,7 @@ fn get_operators(
     } else if operator_list[precendence].arg_count()? == 2 {
         let mut expr: Expression =
             get_operators(tokens, logs, index, precendence + 1, source, var_list)?;
+        if let Expression::CastOp { .. } = expr { return Some(expr); }
         while !expr.is_eof() && operator_list[precendence].contains(tokens[*index].token_type) {
             let op: Token = tokens[*index];
             *index += 1;

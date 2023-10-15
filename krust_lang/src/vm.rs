@@ -536,14 +536,14 @@ fn set<T>(
 
 // Converts an int to a boolean.
 fn cast_int_to_bool(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
-    for _i in 0..3 {
-        if stack.pop().is_none() {
-            logs.push(Log {
-                log_type: LogType::Error(ErrorType::FatalError),
-                line_and_col: None,
-            });
-            return;
-        }
+    let value: Option<i32> = <i32>::pop_from_stack(stack);
+    if let Some(value) = value {
+        (value != 0).push_to_stack(stack);
+    } else {
+        logs.push(Log {
+            log_type: LogType::Error(ErrorType::FatalError),
+            line_and_col: None,
+        });
     }
 }
 
