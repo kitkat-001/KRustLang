@@ -8,6 +8,22 @@ use krust::parser::{parse, ParserOutput};
 use krust::util::log::{ErrorType, Log, LogType};
 use krust::vm;
 
+use std::fs::read_to_string;
+
+pub enum FileInput {
+    FilePath(String),
+    FileText(String)
+}
+
+impl FileInput {
+    fn get_file_text(&self) -> String{
+        match self {
+            Self::FilePath(path) => read_to_string(path).expect("this method should only be called on FilePath variant if previously checked."),
+            Self::FileText(text) => text.clone()
+        }
+    }
+}
+
 fn main() {
     let cli_output: (Option<CLIInfo>, Vec<Log>) = read_command_line();
     for log in cli_output.1 {
@@ -16,14 +32,14 @@ fn main() {
 
     if cli_output.0.is_some() {
         let cli_output: CLIInfo = cli_output.0.expect("checked by if statement");
-        run(cli_output.file_path.as_str(), cli_output.cli_args);
+        run(FileInput::FilePath(cli_output.file_path), cli_output.cli_args);
     }
 }
 
 // Runs the code in the file.
 // TODO: Print every compiler thing before the program actually runs.
-fn run(file_path: &str, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
-    let lex_output: LexerOutput = lex(file_path);
+fn run(file_input: FileInput, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
+    let lex_output: LexerOutput = lex(file_input.get_file_text());
     let parse_output: ParserOutput = parse(lex_output);
     let compiler_output: CompilerOutput = compile(parse_output, cli_args);
     let mut output: Vec<String> = Vec::new();
@@ -54,20 +70,18 @@ fn run(file_path: &str, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
 #[cfg(test)]
 mod tests {
     use super::run;
+    use super::FileInput;
     use krust::util::log;
     use krust::vm::test_func::shift_int;
 
     use log::all_to_string;
-    use std::fs;
 
     use proptest::prelude::*;
 
     // Runs the given code and checks the output against out and err.
-    fn test_code(test_name: &str, code: &str, out: &[String], err: &[String]) {
-        let file_path: String = format!("tests/{test_name}.txt");
-        fs::write(&file_path, code).expect("file will be created if it doesn't exist");
+    fn test_code(code: &str, out: &[String], err: &[String]) {
         let out_err = run(
-            file_path.as_str(),
+            FileInput::FileText(code.to_string()),
             [
                 (usize::BITS / 8)
                     .try_into()
@@ -81,13 +95,12 @@ mod tests {
 
     #[test]
     fn empty() {
-        test_code("empty", "", &Vec::new(), &Vec::new());
+        test_code("", &Vec::new(), &Vec::new());
     }
 
     #[test]
     fn above_max_int() {
         test_code(
-            "above_max_int",
             format!("{}", 0x8000_0001u32).as_str(),
             &Vec::new(),
             &[
@@ -103,7 +116,6 @@ mod tests {
     #[test]
     fn max_int_no_sign() {
         test_code(
-            "max_int_no_sign", 
             format!("{}", 0x8000_0000u32).as_str(), 
             &Vec::new(), 
             &[
@@ -116,7 +128,6 @@ mod tests {
     #[test]
     fn max_pos_int() {
         test_code(
-            "max_int_pos",
             format!("{}", 0x8000_0000u32 - 1).as_str(),
             &[format!("{}", 0x8000_0000u32 - 1)],
             &Vec::new(),
@@ -126,7 +137,6 @@ mod tests {
     #[test]
     fn below_min_int() {
         test_code(
-            "below_min_int",
             format!("-{}", 0x8000_0001u32).as_str(),
             &Vec::new(),
             &[
@@ -142,7 +152,6 @@ mod tests {
     #[test]
     fn min_int() {
         test_code(
-            "min_int",
             format!("-{}", 0x8000_0000u32).as_str(),
             &[format!("-{}", 0x8000_0000u32)],
             &Vec::new(),
@@ -152,7 +161,6 @@ mod tests {
     #[test]
     fn open_left_paren() {
         test_code(
-            "open_left_paren",
             "(",
             &Vec::new(),
             &[
@@ -166,7 +174,6 @@ mod tests {
     #[test]
     fn open_right_paren() {
         test_code(
-            "open_right_paren",
             ")",
             &Vec::new(),
             &[
@@ -180,7 +187,6 @@ mod tests {
     #[test]
     fn empty_parens() {
         test_code(
-            "empty_parens",
             "()",
             &Vec::new(),
             &[
@@ -193,7 +199,6 @@ mod tests {
     #[test]
     fn bad_type_unary() {
         test_code(
-            "bad_type_unary",
             "!1",
             &Vec::new(),
             &[
@@ -207,7 +212,6 @@ mod tests {
     #[test]
     fn bad_types_binary() {
         test_code(
-            "bad_types_binary",
             "1+true",
             &Vec::new(),
             &["error (line 1:2): the operator \"+\" has no definition over the types \"int\" and \"bool\".".to_string(),
@@ -218,7 +222,6 @@ mod tests {
     #[test]
     fn statements_no_output_test() {
         test_code(
-            "statements_no_output_test",
             "true;",
             &Vec::new(),
             &Vec::new(),
@@ -227,7 +230,6 @@ mod tests {
     #[test]
     fn statement_and_expression() {
         test_code(
-            "statement_and_expression",
             "true; false",
             &["false".to_string()],
             &Vec::new(),
@@ -237,7 +239,6 @@ mod tests {
     #[test]
     fn chained_assignments() {
         test_code(
-            "chained_assignments",
             format!("int a = int b = 1; a").as_str(),
             &["1".to_string()],
             &Vec::new(),
@@ -247,7 +248,6 @@ mod tests {
     #[test]
     fn assignments_as_values() {
         test_code(
-            "assignments_as_values",
             format!("(int a = 6) * a").as_str(),
             &["36".to_string()],
             &Vec::new(),
@@ -257,7 +257,6 @@ mod tests {
     #[test]
     fn vars_of_same_name() {
         test_code(
-            "vars_of_same_name",
             format!("int var = 1; bool var = true; var").as_str(),
             &["true".to_string()],
             &Vec::new(),
@@ -267,7 +266,6 @@ mod tests {
     #[test]
     fn chained_vars_of_same_name() {
         test_code(
-            "chained_vars_of_same_name",
             format!("int var = 1; int var = var + 2; var").as_str(),
             &["3".to_string()],
             &Vec::new(),
@@ -277,7 +275,6 @@ mod tests {
     #[test]
     fn no_declaration() {
         test_code(
-            "no_declaration",
             format!("var = 1;").as_str(),
             &Vec::new(),
             &[
@@ -291,7 +288,6 @@ mod tests {
         #[test]
         fn random_int(value in proptest::num::i32::ANY) {
             test_code(
-                "random_int",
                 format!("{value}").as_str(),
                 &[format!("{value}")],
                 &Vec::new()
@@ -301,7 +297,6 @@ mod tests {
         #[test]
         fn var_int(value in proptest::num::i32::ANY) {
             test_code(
-                "var_int",
                 format!("int var = {value}; var").as_str(),
                 &[format!("{value}")],
                 &Vec::new()
@@ -311,7 +306,6 @@ mod tests {
         #[test]
         fn var_bool(value in proptest::bool::ANY) {
             test_code(
-                "var_bool",
                 format!("bool var = {value}; var").as_str(),
                 &[format!("{value}")],
                 &Vec::new()
@@ -321,7 +315,6 @@ mod tests {
         #[test]
         fn int_to_bool(value in proptest::num::i32::ANY) {
             test_code(
-                "int_to_bool",
                 format!("(bool) {value}").as_str(),
                 &[format!("{}", value != 0)],
                 &Vec::new()
@@ -331,7 +324,6 @@ mod tests {
         #[test]
         fn bool_to_int(value in proptest::bool::ANY) {
             test_code(
-                "bool_to_int",
                 format!("(int) {value}").as_str(),
                 &[format!("{}", value as i32)],
                 &Vec::new()
@@ -341,7 +333,6 @@ mod tests {
         #[test]
         fn add_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
-                "add_ints",
                 format!("{a}+{b}").as_str(),
                 &[format!("{}", i32::wrapping_add(a, b))],
                 &Vec::new()
@@ -351,7 +342,6 @@ mod tests {
         #[test]
         fn sub_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
-                "sub_ints",
                 format!("{a}-{b}").as_str(),
                 &[format!("{}", i32::wrapping_sub(a, b))],
                 &Vec::new()
@@ -361,7 +351,6 @@ mod tests {
         #[test]
         fn mul_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
-                "mul_ints",
                 format!("{a}*{b}").as_str(),
                 &[format!("{}", i32::wrapping_mul(a, b))],
                 &Vec::new()
@@ -378,7 +367,6 @@ mod tests {
             )
         ) {
             test_code(
-                "div_ints",
                 format!("{a}/{b}").as_str(),
                 &[format!("{}", i32::wrapping_div(a, b))],
                 &Vec::new()
@@ -388,7 +376,6 @@ mod tests {
         #[test]
         fn div_by_zero(a in proptest::num::i32::ANY) {
             test_code(
-                "div_by_zero",
                 format!("{a}/0").as_str(),
                 &Vec::new(),
                 &[format!("error (line 1:{}): division by zero.", format!("{a}").chars().count() + 1)]
@@ -405,7 +392,6 @@ mod tests {
             )
         ) {
             test_code(
-                "mod_ints",
                 format!("{a}%{b}").as_str(),
                 &[format!("{}", i32::wrapping_rem_euclid(a, b))],
                 &Vec::new()
@@ -415,7 +401,6 @@ mod tests {
         #[test]
         fn mod_by_zero(a in proptest::num::i32::ANY) {
             test_code(
-                "mod_by_zero",
                 format!("{a}%0").as_str(),
                 &Vec::new(),
                 &[format!("error (line 1:{}): division by zero.", format!("{a}").chars().count() + 1)]
@@ -425,7 +410,6 @@ mod tests {
         #[test]
         fn less_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
-                "less_ints_eq",
                 format!("{a}<{a}").as_str(),
                 &["false".to_owned()],
                 &Vec::new()
@@ -436,7 +420,6 @@ mod tests {
         fn less_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
-                "less_ints_ineq",
                 format!("{a}<{b}").as_str(),
                 &[format!("{}", a < b)],
                 &Vec::new()
@@ -446,7 +429,6 @@ mod tests {
         #[test]
         fn less_equal_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
-                "less_equal_ints_eq",
                 format!("{a}<={a}").as_str(),
                 &["true".to_owned()],
                 &Vec::new()
@@ -457,7 +439,6 @@ mod tests {
         fn less_equal_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
-                "less_equal_ints_ineq",
                 format!("{a}<={b}").as_str(),
                 &[format!("{}", a <= b)],
                 &Vec::new()
@@ -467,7 +448,6 @@ mod tests {
         #[test]
         fn greater_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
-                "greater_ints_eq",
                 format!("{a}>{a}").as_str(),
                 &["false".to_owned()],
                 &Vec::new()
@@ -478,7 +458,6 @@ mod tests {
         fn greater_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
-                "greater_ints_ineq",
                 format!("{a}>{b}").as_str(),
                 &[format!("{}", a > b)],
                 &Vec::new()
@@ -488,7 +467,6 @@ mod tests {
         #[test]
         fn greater_equal_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
-                "greater_equal_ints_eq",
                 format!("{a}>={a}").as_str(),
                 &["true".to_owned()],
                 &Vec::new()
@@ -499,7 +477,6 @@ mod tests {
         fn greater_equal_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
-                "greater_equal_ints_ineq",
                 format!("{a}>={b}").as_str(),
                 &[format!("{}", a >= b)],
                 &Vec::new()
@@ -509,7 +486,6 @@ mod tests {
         #[test]
         fn not(a in proptest::bool::ANY) {
             test_code(
-                "not",
                 format!("!{a}").as_str(),
                 &[format!("{}", !a)],
                 &Vec::new()
@@ -519,7 +495,6 @@ mod tests {
         #[test]
         fn complement_int(a in proptest::num::i32::ANY) {
             test_code(
-                "complement_int",
                 format!("~{a}").as_str(),
                 &[format!("{}", !a)],
                 &Vec::new()
@@ -529,7 +504,6 @@ mod tests {
         #[test]
         fn and_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
-                "and_int",
                 format!("{a} & {b}").as_str(),
                 &[format!("{}", a & b)],
                 &Vec::new()
@@ -539,7 +513,6 @@ mod tests {
         #[test]
         fn and_bool(a in proptest::bool::ANY, b in proptest::bool::ANY) {
             test_code(
-                "and_bool",
                 format!("{a} & {b}").as_str(),
                 &[format!("{}", a & b)],
                 &Vec::new()
@@ -549,7 +522,6 @@ mod tests {
         #[test]
         fn xor_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
-                "xor_int",
                 format!("{a} ^ {b}").as_str(),
                 &[format!("{}", a ^ b)],
                 &Vec::new()
@@ -559,7 +531,6 @@ mod tests {
         #[test]
         fn xor_bool(a in proptest::bool::ANY, b in proptest::bool::ANY) {
             test_code(
-                "xor_bool",
                 format!("{a} ^ {b}").as_str(),
                 &[format!("{}", a ^ b)],
                 &Vec::new()
@@ -569,7 +540,6 @@ mod tests {
         #[test]
         fn or_int(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
-                "or_int",
                 format!("{a} | {b}").as_str(),
                 &[format!("{}", a | b)],
                 &Vec::new()
@@ -579,7 +549,6 @@ mod tests {
         #[test]
         fn or_bool(a in proptest::bool::ANY, b in proptest::bool::ANY) {
             test_code(
-                "or_bool",
                 format!("{a} | {b}").as_str(),
                 &[format!("{}", a | b)],
                 &Vec::new()
@@ -589,7 +558,6 @@ mod tests {
         #[test]
         fn left_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
-                "left_shift_ints",
                 format!("{a}<<{b}").as_str(),
                 &[format!("{}", shift_int(a, b))],
                 &Vec::new()
@@ -599,7 +567,6 @@ mod tests {
         #[test]
         fn right_shift_ints(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
-                "right_shift_ints",
                 format!("{a}>>{b}").as_str(),
                 &[format!("{}", shift_int(a, -b))],
                 &Vec::new()
@@ -609,7 +576,6 @@ mod tests {
         #[test]
         fn equality_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
-                "equality_ints_eq",
                 format!("{a}=={a}").as_str(),
                 &["true".to_owned()],
                 &Vec::new()
@@ -620,7 +586,6 @@ mod tests {
         fn equality_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
-                "equality_ints_ineq",
                 format!("{a}=={b}").as_str(),
                 &[format!("{}", a == b)],
                 &Vec::new()
@@ -630,7 +595,6 @@ mod tests {
         #[test]
         fn equality_bools_eq(a in proptest::bool::ANY) {
             test_code(
-                "equality_bools_eq",
                 format!("{a}=={a}").as_str(),
                 &["true".to_owned()],
                 &Vec::new()
@@ -641,7 +605,6 @@ mod tests {
         fn equality_bools_ineq (a in proptest::bool::ANY, b in proptest::bool::ANY) {
             prop_assume!(a != b);
             test_code(
-                "equality_bools_ineq",
                 format!("{a}=={b}").as_str(),
                 &[format!("{}", a == b)],
                 &Vec::new()
@@ -652,7 +615,6 @@ mod tests {
         #[test]
         fn inequality_ints_eq(a in proptest::num::i32::ANY) {
             test_code(
-                "inequality_ints_eq",
                 format!("{a}!={a}").as_str(),
                 &["false".to_owned()],
                 &Vec::new()
@@ -663,7 +625,6 @@ mod tests {
         fn inequality_ints_ineq (a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             prop_assume!(a != b);
             test_code(
-                "inequality_ints_ineq",
                 format!("{a}!={b}").as_str(),
                 &[format!("{}", a != b)],
                 &Vec::new()
@@ -673,7 +634,6 @@ mod tests {
         #[test]
         fn inequality_bools_eq(a in proptest::bool::ANY) {
             test_code(
-                "inequality_bools_eq",
                 format!("{a}!={a}").as_str(),
                 &["false".to_owned()],
                 &Vec::new()
@@ -684,7 +644,6 @@ mod tests {
         fn inequality_bools_ineq (a in proptest::bool::ANY, b in proptest::bool::ANY) {
             prop_assume!(a != b);
             test_code(
-                "inequality_bools_ineq",
                 format!("{a}!={b}").as_str(),
                 &[format!("{}", a != b)],
                 &Vec::new()
@@ -694,7 +653,6 @@ mod tests {
         #[test]
         fn double_add(a in proptest::num::i32::ANY, b in proptest::num::i32::ANY) {
             test_code(
-                "double_add",
                 format!("{a}++{b}").as_str(),
                 &Vec::new(),
                 &[
@@ -711,7 +669,6 @@ mod tests {
             c in proptest::num::i32::ANY
         ) {
             test_code(
-                "order_of_ops",
                 format!("{a}+{b}*{c}").as_str(),
                 &[format!("{}", i32::wrapping_add(a, i32::wrapping_mul(b, c)))],
                 &Vec::new()
@@ -726,7 +683,6 @@ mod tests {
             d in proptest::num::i32::ANY
         ) {
             test_code(
-                "bitwise_order_of_ops",
                 format!("{a} | {b} ^ {c} & {d}").as_str(),
                 &[format!("{}", a | (b ^ (c & d)))],
                 &Vec::new()
@@ -740,7 +696,6 @@ mod tests {
             c in proptest::num::i32::ANY
         ) {
             test_code(
-                "mixed_order_of_ops",
                 format!("{a} & {b} + {c}").as_str(),
                 &[format!("{}", a  & i32::wrapping_add(b, c))],
                 &Vec::new()
@@ -755,7 +710,6 @@ mod tests {
             d in proptest::bool::ANY
         ) {
             test_code(
-                "bool_order_of_ops",
                 format!("{a} | {b} ^ {c} & {d}").as_str(),
                 &[format!("{}", a | (b ^ (c & d)))],
                 &Vec::new()
@@ -770,7 +724,6 @@ mod tests {
             c in proptest::num::i32::ANY
         ) {
             test_code(
-                "paren_test",
                 format!("{a}*({b}+{c})").as_str(),
                 &[format!("{}", i32::wrapping_mul(a, i32::wrapping_add(b, c)))],
                 &Vec::new()

@@ -3,8 +3,6 @@
 use crate::util::{log, trie};
 use log::{ErrorType, Log, LogType};
 use std::collections::HashMap;
-use std::fs::read_to_string;
-use std::io::Error;
 use std::num::ParseIntError;
 
 use trie::Node;
@@ -88,11 +86,8 @@ pub struct LexerOutput {
 
 /// Lexes the file given in the command line.
 #[must_use]
-pub fn lex(file_path: &str) -> LexerOutput {
+pub fn lex(file_text: String) -> LexerOutput {
     // Prepare fields for output.
-    let file_text: Result<String, Error> = read_to_string(file_path);
-    let file_text: String =
-        file_text.expect("should be valid as error handled in command line reader");
     let mut tokens: Vec<Token> = Vec::new();
     let mut logs: Vec<Log> = Vec::new();
 
