@@ -642,7 +642,7 @@ fn get_variable_declaration(
     var_list: &mut HashMap<String, Expression>,
 ) -> Option<Expression> {
     let old_index: usize = *index;
-    let expr: Expression = get_cast(tokens, logs, index, source, var_list)?;
+    let expr: Expression = get_operators(tokens, logs, index, 0, source, var_list)?;
     if let Expression::Type { value } = expr {
         if tokens[*index].token_type == TokenType::RightParen { return Some(expr); }
         let var: Option<Expression> = get_operators(tokens, logs, index, 0, source, var_list);
@@ -668,54 +668,6 @@ fn get_variable_declaration(
     Some(expr)
 }
 
-// Handle casts.
-fn get_cast(
-    tokens: &Vec<Token>,
-    logs: &mut Vec<Log>,
-    index: &mut usize,
-    source: &String,
-    var_list: &mut HashMap<String, Expression>,
-) -> Option<Expression> {
-    let old_index: usize = *index;
-    let expr: Expression = get_operators(tokens, logs, index, 0, source, var_list)?;
-    if let Expression::CastOp { expr_type } = expr {
-        let right: Option<Expression> = get_operators(tokens, logs, index, 0, source, var_list);
-        if let Some(right) = right {
-            Some(Expression::Cast {
-                expr_type: if right.get_type().is_some()
-                    && expr_type
-                        .valid_casts()
-                        .contains(&right.get_type().expect("checked by if"))
-                {
-                    Some(expr_type)
-                } else {
-                    logs.push(Log {
-                        log_type: LogType::Error(ErrorType::InvalidTypesForCast(
-                            expr_type.to_string(),
-                            match right.get_type() {
-                                Option::Some(t) => t.to_string(),
-                                Option::None => "none".to_string(),
-                            },
-                        )),
-                        line_and_col: Some((tokens[old_index].line, tokens[old_index].col)),
-                    });
-                    None
-                },
-                expr: Box::new(right),
-            })
-        } else {
-            logs.push(Log {
-                log_type: LogType::Error(ErrorType::ExpectedExpressionAfterCast(
-                    expr_type.to_string(),
-                )),
-                line_and_col: Some((tokens[old_index].line, tokens[old_index].col)),
-            });
-            right
-        }
-    } else {
-        Some(expr)
-    }
-}
 
 // Gets an expression based on the operator precedence.
 fn get_operators(
@@ -728,7 +680,7 @@ fn get_operators(
 ) -> Option<Expression> {
     let operator_list: &[OpList] = &OpList::get_op_lists();
     if precendence >= operator_list.len() {
-        Some(get_primary(tokens, logs, index, source, var_list))
+        get_cast(tokens, logs, index, source, var_list)
     } else if operator_list[precendence].arg_count()? == 1 {
         if operator_list[precendence].contains(tokens[*index].token_type) {
             let op: Token = tokens[*index];
@@ -775,6 +727,55 @@ fn get_operators(
         return Some(expr);
     } else {
         panic!("currently no other options for operators' argument counts.")
+    }
+}
+
+// Handle casts.
+fn get_cast(
+    tokens: &Vec<Token>,
+    logs: &mut Vec<Log>,
+    index: &mut usize,
+    source: &String,
+    var_list: &mut HashMap<String, Expression>,
+) -> Option<Expression> {
+    let old_index: usize = *index;
+    let expr: Expression = get_primary(tokens, logs, index, source, var_list);
+    if let Expression::CastOp { expr_type } = expr {
+        let right: Option<Expression> = get_operators(tokens, logs, index, OpList::get_op_lists().len() - 1, source, var_list); // Check for unary operations first.
+        if let Some(right) = right {
+            Some(Expression::Cast {
+                expr_type: if right.get_type().is_some()
+                    && expr_type
+                        .valid_casts()
+                        .contains(&right.get_type().expect("checked by if"))
+                {
+                    Some(expr_type)
+                } else {
+                    logs.push(Log {
+                        log_type: LogType::Error(ErrorType::InvalidTypesForCast(
+                            expr_type.to_string(),
+                            match right.get_type() {
+                                Option::Some(t) => t.to_string(),
+                                Option::None => "none".to_string(),
+                            },
+                        )),
+                        line_and_col: Some((tokens[old_index].line, tokens[old_index].col)),
+                    });
+                    None
+                },
+                expr: Box::new(right),
+            })
+        } else {
+            logs.push(Log {
+                log_type: LogType::Error(ErrorType::ExpectedExpressionAfterCast(
+                    expr_type.to_string(),
+                )),
+                line_and_col: Some((tokens[old_index].line, tokens[old_index].col)),
+            });
+            right
+        }
+    } else {
+        Some(expr)
     }
 }
 
