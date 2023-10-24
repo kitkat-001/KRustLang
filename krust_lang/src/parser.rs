@@ -8,7 +8,7 @@ use std::fmt::{Display, Formatter, Result};
 /// The types in this language.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Type {
-    //Byte,
+    Byte,
     Int,
     Bool,
     Void, // Nothing type.
@@ -17,20 +17,25 @@ pub enum Type {
 
 impl Type {
     /// Get the types that this type can be casted to.
-    fn valid_casts(self) -> Vec<Self> {
+    fn valid_casts(&self) -> Vec<Self> {
         match self {
-            /*Self::Byte | */
-            Self::Int | Self::Bool => vec![/*Self::Byte, */ Self::Int, Self::Bool],
+            Self::Byte
+            | Self::Int
+            | Self::Bool => vec![Self::Byte, Self::Int, Self::Bool],
             Self::Void => vec![Self::Void],
             Self::Type => vec![Self::Type],
         }
+    }
+
+    fn is_num_type(&self) -> bool {
+        [Self::Byte, Self::Int].contains(self)
     }
 }
 
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            //Self::Byte => write!(f, "\"byte\""),
+            Self::Byte => write!(f, "\"byte\""),
             Self::Int => write!(f, "\"int\""),
             Self::Bool => write!(f, "\"bool\""),
             Self::Void => write!(f, "\"void\""),
@@ -146,11 +151,11 @@ macro_rules! num_ops {
     ($op_list: expr) => ($op_list);
     ($op_list: expr, $op: expr, $output_type: expr; 1) => {
         {
-            let list: Vec<Operator> = $op_list.into_iter().chain(vec![/*Operator {
+            let list: Vec<Operator> = $op_list.into_iter().chain(vec![Operator {
                 token: $op,
                 input: vec![Type::Byte],
                 output: $output_type.unwrap_or(Type::Byte),
-            },*/
+            },
             Operator {
                 token: $op,
                 input: vec![Type::Int],
@@ -161,11 +166,11 @@ macro_rules! num_ops {
     };
     ($op_list: expr, $op: expr, $output_type: expr, $($extra_ops: expr, $extra_outputs: expr), +; 1) => {
         {
-            let list: Vec<Operator> = num_ops!($op_list, $($extra_ops, $extra_outputs), +; 1).into_iter().chain(vec![/*Operator {
+            let list: Vec<Operator> = num_ops!($op_list, $($extra_ops, $extra_outputs), +; 1).into_iter().chain(vec![Operator {
                 token: $op,
                 input: vec![Type::Byte],
                 output: $output_type.unwrap_or(Type::Byte),
-            },*/
+            },
             Operator {
                 token: $op,
                 input: vec![Type::Int],
@@ -176,11 +181,11 @@ macro_rules! num_ops {
     };
     ($op_list: expr, $op: expr, $output_type: expr; 2) => {
         {
-            let list: Vec<Operator> = $op_list.into_iter().chain(vec![/*Operator {
+            let list: Vec<Operator> = $op_list.into_iter().chain(vec![Operator {
                 token: $op,
                 input: vec![Type::Byte, Type::Byte],
                 output: $output_type.unwrap_or(Type::Byte),
-            },*/
+            },
             Operator {
                 token: $op,
                 input: vec![Type::Int, Type::Int],
@@ -191,11 +196,11 @@ macro_rules! num_ops {
     };
     ($op_list: expr, $op: expr, $output_type: expr, $($extra_ops: expr, $extra_outputs: expr), +; 2) => {
         {
-            let list: Vec<Operator> = num_ops!($op_list, $($extra_ops, $extra_outputs), +; 2).into_iter().chain(vec![/*Operator {
+            let list: Vec<Operator> = num_ops!($op_list, $($extra_ops, $extra_outputs), +; 2).into_iter().chain(vec![Operator {
                 token: $op,
                 input: vec![Type::Byte, Type::Byte],
                 output: $output_type.unwrap_or(Type::Byte),
-            },*/
+            },
             Operator {
                 token: $op,
                 input: vec![Type::Int, Type::Int],
@@ -586,16 +591,27 @@ fn handle_assignment(
         if let TokenType::Equals = tokens[*index].token_type {
             *index += 1;
             let mut expr_type: Option<Type> = expr_type;
-            let assignment: Expression = get_expression(tokens, logs, index, source, var_list);
+            let mut assignment: Expression = get_expression(tokens, logs, index, source, var_list);
             if assignment.get_type() != expr_type {
                 if assignment.get_type().is_some() && expr_type.is_some() {
-                    logs.push(Log {
-                        log_type: LogType::Error(ErrorType::InvalidArgsForAssignment(
-                            token.to_string(source),
-                            [expr_type?.to_string(), assignment.get_type()?.to_string()], // Both types are not null here.
-                        )),
-                        line_and_col: Some((op.line, op.col)),
-                    });
+                    if let Expression::Literal { token, .. } = assignment {
+                        if let TokenType::IntLiteral(value) = token.token_type {
+                            if in_range(value, expr_type) {
+                                assignment = Expression::Cast {
+                                    expr_type,
+                                    expr: Box::new(assignment)
+                                };
+                            }
+                        }
+                    } else {
+                        logs.push(Log {
+                            log_type: LogType::Error(ErrorType::InvalidArgsForAssignment(
+                                token.to_string(source),
+                                [expr_type?.to_string(), assignment.get_type()?.to_string()], // Both types are not null here.
+                            )),
+                            line_and_col: Some((op.line, op.col)),
+                        });
+                    }
                 }
                 expr_type = None;
             }
@@ -612,6 +628,15 @@ fn handle_assignment(
     }
 
     Some(expr)
+}
+
+// Determines if a numerical value can fit in the given type.
+fn in_range(value: u32, expr_type: Option<Type>) -> bool {
+    match expr_type {
+        Some(Type::Int) => true,
+        Some(Type::Byte) => value <= u8::MAX.into(),
+        _ => false,
+    }
 }
 
 // Handle variable declarations.
