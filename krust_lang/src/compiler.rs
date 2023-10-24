@@ -280,7 +280,9 @@ fn handle_binary(
             bytecode.push(match expr_type {
                 Type::Int => OpCode::PopInt,
                 Type::Bool => OpCode::PopByte,
-                Type::Void | Type::Type => panic!("all variable types should have been accounted for",),
+                Type::Void | Type::Type => {
+                    panic!("all variable types should have been accounted for",)
+                }
             } as u8);
             bytecode.append(&mut generate_bytecode(right, ptr_size, logs, var_list));
             if let Expression::Variable {

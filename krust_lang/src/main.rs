@@ -12,14 +12,16 @@ use std::fs::read_to_string;
 
 pub enum FileInput {
     FilePath(String),
-    FileText(String)
+    FileText(String),
 }
 
 impl FileInput {
-    fn get_file_text(&self) -> String{
+    fn get_file_text(&self) -> String {
         match self {
-            Self::FilePath(path) => read_to_string(path).expect("this method should only be called on FilePath variant if previously checked."),
-            Self::FileText(text) => text.clone()
+            Self::FilePath(path) => read_to_string(path).expect(
+                "this method should only be called on FilePath variant if previously checked.",
+            ),
+            Self::FileText(text) => text.clone(),
         }
     }
 }
@@ -32,14 +34,17 @@ fn main() {
 
     if cli_output.0.is_some() {
         let cli_output: CLIInfo = cli_output.0.expect("checked by if statement");
-        run(FileInput::FilePath(cli_output.file_path), cli_output.cli_args);
+        run(
+            FileInput::FilePath(cli_output.file_path),
+            cli_output.cli_args,
+        );
     }
 }
 
 // Runs the code in the file.
 // TODO: Print every compiler thing before the program actually runs.
 fn run(file_input: FileInput, cli_args: [u8; 2]) -> (Vec<String>, Vec<Log>) {
-    let lex_output: LexerOutput = lex(file_input.get_file_text());
+    let lex_output: LexerOutput = lex(&file_input.get_file_text());
     let parse_output: ParserOutput = parse(lex_output);
     let compiler_output: CompilerOutput = compile(parse_output, cli_args);
     let mut output: Vec<String> = Vec::new();
@@ -221,19 +226,11 @@ mod tests {
 
     #[test]
     fn statements_no_output_test() {
-        test_code(
-            "true;",
-            &Vec::new(),
-            &Vec::new(),
-        );
+        test_code("true;", &Vec::new(), &Vec::new());
     }
     #[test]
     fn statement_and_expression() {
-        test_code(
-            "true; false",
-            &["false".to_string()],
-            &Vec::new(),
-        );
+        test_code("true; false", &["false".to_string()], &Vec::new());
     }
 
     #[test]

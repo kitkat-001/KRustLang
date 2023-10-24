@@ -7,7 +7,7 @@ use krust::lexer::{lex, LexerOutput};
 use krust::parser::{parse, ParserOutput};
 use krust::util::log::{ErrorType, Log, LogType};
 use std::env::{current_dir, set_current_dir};
-use std::fs::{rename, File, read_to_string};
+use std::fs::{read_to_string, rename, File};
 use std::io::{prelude::*, Error};
 use std::path::PathBuf;
 use std::process::Command;
@@ -51,7 +51,8 @@ fn main() {
 
 // Produces bytecode from the file.
 fn generate_bytecode(file_path: &str, cli_args: [u8; 2]) -> CompilerOutput {
-    let lex_output: LexerOutput = lex(read_to_string(file_path).expect("should be valid as error handled in command line reader"));
+    let lex_output: LexerOutput = lex(&read_to_string(file_path)
+        .expect("should be valid as error handled in command line reader"));
     let parse_output: ParserOutput = parse(lex_output);
     compile(parse_output, cli_args)
 }

@@ -87,7 +87,7 @@ pub struct LexerOutput {
 
 /// Lexes the file given in the command line.
 #[must_use]
-pub fn lex(file_text: String) -> LexerOutput {
+pub fn lex(file_text: &str) -> LexerOutput {
     // Prepare fields for output.
     let mut tokens: Vec<Token> = Vec::new();
     let mut logs: Vec<Log> = Vec::new();
@@ -109,7 +109,7 @@ pub fn lex(file_text: String) -> LexerOutput {
     // Loop through each token until the end of the file is found.
     loop {
         let output: Option<LexerOutput> = get_token(
-            &file_text,
+            file_text,
             &mut tokens,
             &mut logs,
             &mut index,
@@ -125,7 +125,7 @@ pub fn lex(file_text: String) -> LexerOutput {
 
 // Gets the next token in the code.
 fn get_token(
-    file_text: &String,
+    file_text: &str,
     tokens: &mut Vec<Token>,
     logs: &mut Vec<Log>,
     index: &mut usize,

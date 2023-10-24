@@ -19,7 +19,8 @@ impl Type {
     /// Get the types that this type can be casted to.
     fn valid_casts(self) -> Vec<Self> {
         match self {
-            /*Self::Byte | */Self::Int | Self::Bool => vec![/*Self::Byte, */Self::Int, Self::Bool],
+            /*Self::Byte | */
+            Self::Int | Self::Bool => vec![/*Self::Byte, */ Self::Int, Self::Bool],
             Self::Void => vec![Self::Void],
             Self::Type => vec![Self::Type],
         }
@@ -238,7 +239,7 @@ impl OpList {
                         input: vec![Type::Bool, Type::Bool],
                         output: Type::Bool,
                     },
-                ], TokenType::Bar, None; 2)
+                ], TokenType::Bar, None; 2),
             },
             Self {
                 list: num_ops!(vec![
@@ -247,7 +248,7 @@ impl OpList {
                         input: vec![Type::Bool, Type::Bool],
                         output: Type::Bool,
                     },
-                ], TokenType::Caret, None; 2)
+                ], TokenType::Caret, None; 2),
             },
             Self {
                 list: num_ops!(vec![
@@ -256,19 +257,19 @@ impl OpList {
                         input: vec![Type::Bool, Type::Bool],
                         output: Type::Bool,
                     },
-                ], TokenType::Ampersand, None; 2)
+                ], TokenType::Ampersand, None; 2),
             },
             Self {
                 list: num_ops!(Vec::new(),
-                TokenType::LeftShift, None, TokenType::RightShift, None; 2)
+                TokenType::LeftShift, None, TokenType::RightShift, None; 2),
             },
             Self {
                 list: num_ops!(Vec::new(),
-                TokenType::Plus, None, TokenType::Minus, None; 2)
+                TokenType::Plus, None, TokenType::Minus, None; 2),
             },
             Self {
                 list: num_ops!(Vec::new(),
-                TokenType::Star, None, TokenType::Slash, None, TokenType::Percent, None; 2)
+                TokenType::Star, None, TokenType::Slash, None, TokenType::Percent, None; 2),
             },
             Self {
                 list: num_ops!(vec![
@@ -277,7 +278,7 @@ impl OpList {
                         input: vec![Type::Bool],
                         output: Type::Bool,
                     },
-                ], TokenType::Minus, None, TokenType::Tilde, None; 1)
+                ], TokenType::Minus, None, TokenType::Tilde, None; 1),
             },
         ]
     }
@@ -624,7 +625,9 @@ fn get_variable_declaration(
     let old_index: usize = *index;
     let expr: Expression = get_operators(tokens, logs, index, 0, source, var_list)?;
     if let Expression::Type { value } = expr {
-        if tokens[*index].token_type == TokenType::RightParen { return Some(expr); }
+        if tokens[*index].token_type == TokenType::RightParen {
+            return Some(expr);
+        }
         let var: Option<Expression> = get_operators(tokens, logs, index, 0, source, var_list);
         if let Some(var) = var {
             if let Expression::Variable { token, .. } = var {
@@ -647,7 +650,6 @@ fn get_variable_declaration(
     }
     Some(expr)
 }
-
 
 // Gets an expression based on the operator precedence.
 fn get_operators(
@@ -682,7 +684,9 @@ fn get_operators(
     } else if operator_list[precendence].arg_count()? == 2 {
         let mut expr: Expression =
             get_operators(tokens, logs, index, precendence + 1, source, var_list)?;
-        if let Expression::CastOp { .. } = expr { return Some(expr); }
+        if let Expression::CastOp { .. } = expr {
+            return Some(expr);
+        }
         while !expr.is_eof() && operator_list[precendence].contains(tokens[*index].token_type) {
             let op: Token = tokens[*index];
             *index += 1;
@@ -721,7 +725,14 @@ fn get_cast(
     let old_index: usize = *index;
     let expr: Expression = get_primary(tokens, logs, index, source, var_list);
     if let Expression::CastOp { expr_type } = expr {
-        let right: Option<Expression> = get_operators(tokens, logs, index, OpList::get_op_lists().len() - 1, source, var_list); // Check for unary operations first.
+        let right: Option<Expression> = get_operators(
+            tokens,
+            logs,
+            index,
+            OpList::get_op_lists().len() - 1,
+            source,
+            var_list,
+        ); // Check for unary operations first.
         if let Some(right) = right {
             Some(Expression::Cast {
                 expr_type: if right.get_type().is_some()
