@@ -19,9 +19,7 @@ impl Type {
     /// Get the types that this type can be casted to.
     fn valid_casts(&self) -> Vec<Self> {
         match self {
-            Self::Byte
-            | Self::Int
-            | Self::Bool => vec![Self::Byte, Self::Int, Self::Bool],
+            Self::Byte | Self::Int | Self::Bool => vec![Self::Byte, Self::Int, Self::Bool],
             Self::Void => vec![Self::Void],
             Self::Type => vec![Self::Type],
         }
@@ -594,12 +592,13 @@ fn handle_assignment(
             let mut assignment: Expression = get_expression(tokens, logs, index, source, var_list);
             if assignment.get_type() != expr_type {
                 if assignment.get_type().is_some() && expr_type.is_some() {
+                    // AUto-casting for int literals.
                     if let Expression::Literal { token, .. } = assignment {
                         if let TokenType::IntLiteral(value) = token.token_type {
                             if in_range(value, expr_type) {
                                 assignment = Expression::Cast {
                                     expr_type,
-                                    expr: Box::new(assignment)
+                                    expr: Box::new(assignment),
                                 };
                             }
                         }

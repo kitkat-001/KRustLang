@@ -381,14 +381,14 @@ fn match_op(
         OpCode::PrintBool => print::<bool>(stack, output, logs),
 
         OpCode::AllocInt => alloc::<i32>(stack, var_list),
-        OpCode::AllocBool => alloc::<bool>(stack, var_list),
+        OpCode::AllocByte => alloc::<u8>(stack, var_list),
         OpCode::GetInt => get::<i32>(bytecode, stack, index, logs, var_list),
-        OpCode::GetBool => get::<bool>(bytecode, stack, index, logs, var_list),
+        OpCode::GetByte => get::<u8>(bytecode, stack, index, logs, var_list),
         OpCode::SetInt => set::<i32>(bytecode, stack, index, logs, var_list),
-        OpCode::SetBool => set::<bool>(bytecode, stack, index, logs, var_list),
+        OpCode::SetByte => set::<u8>(bytecode, stack, index, logs, var_list),
 
         OpCode::IntToBool => cast_int_to_bool(stack, logs),
-        OpCode::BoolToInt => cast_bool_to_int(stack),
+        OpCode::ByteToInt => cast_byte_to_int(stack),
 
         OpCode::MinusInt => minus::<i32>(stack, logs),
         OpCode::AddInt => add::<i32>(stack, logs),
@@ -547,8 +547,8 @@ fn cast_int_to_bool(stack: &mut Vec<u8>, logs: &mut Vec<Log>) {
     }
 }
 
-// Converts a boolean to an int.
-fn cast_bool_to_int(stack: &mut Vec<u8>) {
+// Converts a byte to an int.
+fn cast_byte_to_int(stack: &mut Vec<u8>) {
     for _i in 0..3 {
         stack.push(0);
     }

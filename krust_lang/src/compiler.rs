@@ -19,39 +19,51 @@ pub enum OpCode {
     PopInt,
     PopByte,
     PrintInt,
+    PrintByte,
     PrintBool,
 
     // Variable operators
     AllocInt,
-    AllocBool,
+    AllocByte,
     GetInt,
-    GetBool,
+    GetByte,
     SetInt,
-    SetBool,
+    SetByte,
 
     // Casting/conversion operators
     IntToBool,
-    BoolToInt,
+    IntToByte,
+    ByteToInt,
 
     // Arithmetic operators
     MinusInt,
     AddInt,
+    AddByte,
     SubtractInt,
+    SubtractByte,
     MultiplyInt,
+    MultiplyByte,
     DivideInt,
+    DivideByte,
     ModuloInt,
+    ModuloByte,
 
     // Comparison operators.
     LessInt,
+    LessByte,
     LessEqualInt,
+    LessEqualByte,
     GreaterInt,
+    GreaterByte,
     GreaterEqualInt,
+    GreaterEqualByte,
 
     // Boolean operators
     Not,
 
     // Bitwise operators
     ComplementInt,
+    ComplementByte,
     AndInt,
     AndByte,
     XorInt,
@@ -61,7 +73,9 @@ pub enum OpCode {
 
     // Shifts
     LeftShiftInt,
+    LeftShiftByte,
     RightShiftInt,
+    RightShiftByte,
 
     // Equality operators
     EqualityInt,
@@ -99,6 +113,7 @@ pub fn compile(parser_output: ParserOutput, cli_args: [u8; 2]) -> CompilerOutput
         if ![Type::Void, Type::Type].contains(&expr_type) {
             byte_list.push(match expr_type {
                 Type::Int => OpCode::PrintInt,
+                Type::Byte => OpCode::PrintByte,
                 Type::Bool => OpCode::PrintBool,
                 Type::Void | Type::Type => panic!("Should have been caught by above if statement."),
             } as u8);
@@ -150,12 +165,13 @@ fn generate_bytecode(
             let cast_op: Option<OpCode> = match expr.get_type() {
                 Some(Type::Int) => match expr_type {
                     Some(Type::Int) => None,
+                    Some(Type::Byte) => Some(OpCode::IntToByte),
                     Some(Type::Bool) => Some(OpCode::IntToBool),
                     _ => panic!("no other types should be possible."),
                 },
-                Some(Type::Bool) => match expr_type {
-                    Some(Type::Int) => Some(OpCode::BoolToInt),
-                    Some(Type::Bool) => None,
+                Some(Type::Byte | Type::Bool) => match expr_type {
+                    Some(Type::Int) => Some(OpCode::ByteToInt),
+                    Some(Type::Byte | Type::Bool) => None,
                     _ => panic!("no other types should be possible."),
                 },
                 Some(Type::Void) => match expr_type {
@@ -188,18 +204,24 @@ fn generate_bytecode(
             if expr.get_type() != Some(Type::Void) {
                 bytecode.push(match expr.get_type() {
                     Some(Type::Int) => OpCode::PopInt,
-                    Some(Type::Bool) => OpCode::PopByte,
+                    Some(Type::Byte | Type::Bool) => OpCode::PopByte,
                     _ => panic!("This type is invalid."),
                 } as u8);
             }
         }
         Expression::Unary {
-            op, expr: child, ..
+            op,
+            expr: child,
+            expr_type,
         } => {
             bytecode.append(&mut generate_bytecode(child, ptr_size, logs, var_list));
             bytecode.push(match op.token_type {
                 TokenType::Minus => OpCode::MinusInt,
-                TokenType::Tilde => OpCode::ComplementInt,
+                TokenType::Tilde => match expr_type {
+                    Some(Type::Int) => OpCode::ComplementInt,
+                    Some(Type::Byte) => OpCode::ComplementByte,
+                    _ => panic!("Invalid type for this operation."),
+                },
                 TokenType::ExclamationMark => OpCode::Not,
                 _ => panic!("all unary operators should have been accounted for"),
             } as u8);
@@ -216,7 +238,7 @@ fn generate_bytecode(
                 let index: usize = index.expect("checked by if");
                 bytecode.push(match expr_type {
                     Some(Type::Int) => OpCode::GetInt,
-                    Some(Type::Bool) => OpCode::GetBool,
+                    Some(Type::Byte | Type::Bool) => OpCode::GetByte,
                     _ => panic!("all variable types should have been accounted for",),
                 } as u8);
                 bytecode.append(&mut index.to_le_bytes()[0..BYTES_PER_VAR].to_vec());
@@ -237,7 +259,7 @@ fn generate_bytecode(
                 var_list.push(token);
                 bytecode.push(match expr_type {
                     Some(Type::Int) => OpCode::AllocInt,
-                    Some(Type::Bool) => OpCode::AllocBool,
+                    Some(Type::Byte | Type::Bool) => OpCode::AllocByte,
                     _ => panic!("all variable types should have been accounted for",),
                 } as u8);
             } else {
@@ -279,7 +301,7 @@ fn handle_binary(
             }
             bytecode.push(match expr_type {
                 Type::Int => OpCode::PopInt,
-                Type::Bool => OpCode::PopByte,
+                Type::Byte | Type::Bool => OpCode::PopByte,
                 Type::Void | Type::Type => {
                     panic!("all variable types should have been accounted for",)
                 }
@@ -297,7 +319,7 @@ fn handle_binary(
                     let index: usize = index.expect("checked by if");
                     bytecode.push(match expr_type {
                         Some(Type::Int) => OpCode::SetInt,
-                        Some(Type::Bool) => OpCode::SetBool,
+                        Some(Type::Bool) => OpCode::SetByte,
                         _ => panic!("all variable types should have been accounted for",),
                     } as u8);
                     bytecode.append(&mut index.to_le_bytes()[0..BYTES_PER_VAR].to_vec());
@@ -306,57 +328,93 @@ fn handle_binary(
         }
 
         TokenType::Plus => {
-            bytecode.push(OpCode::AddInt as u8);
+            bytecode.push(match expr_type {
+                Type::Int => OpCode::AddInt,
+                Type::Byte => OpCode::AddByte,
+                _ => panic!("Invalid type for this operation."),
+            } as u8);
         }
         TokenType::Minus => {
-            bytecode.push(OpCode::SubtractInt as u8);
+            bytecode.push(match expr_type {
+                Type::Int => OpCode::SubtractInt,
+                Type::Byte => OpCode::SubtractByte,
+                _ => panic!("Invalid type for this operation."),
+            } as u8);
         }
         TokenType::Star => {
-            bytecode.push(OpCode::MultiplyInt as u8);
+            bytecode.push(match expr_type {
+                Type::Int => OpCode::MultiplyInt,
+                Type::Byte => OpCode::MultiplyByte,
+                _ => panic!("Invalid type for this operation."),
+            } as u8);
         }
         TokenType::Slash => {
-            bytecode.push(OpCode::DivideInt as u8);
+            bytecode.push(match expr_type {
+                Type::Int => OpCode::DivideInt,
+                Type::Byte => OpCode::DivideByte,
+                _ => panic!("Invalid type for this operation."),
+            } as u8);
             bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
             bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
         }
         TokenType::Percent => {
-            bytecode.push(OpCode::ModuloInt as u8);
+            bytecode.push(match expr_type {
+                Type::Int => OpCode::ModuloInt,
+                Type::Byte => OpCode::ModuloByte,
+                _ => panic!("Invalid type for this operation."),
+            } as u8);
             bytecode.append(&mut usize_to_ptr_size(op.line, ptr_size));
             bytecode.append(&mut usize_to_ptr_size(op.col, ptr_size));
         }
 
         TokenType::Less => {
-            bytecode.push(OpCode::LessInt as u8);
+            bytecode.push(match expr_type {
+                Type::Int => OpCode::LessInt,
+                Type::Byte => OpCode::LessByte,
+                _ => panic!("Invalid type for this operation."),
+            } as u8);
         }
         TokenType::LessEqual => {
-            bytecode.push(OpCode::LessEqualInt as u8);
+            bytecode.push(match expr_type {
+                Type::Int => OpCode::LessEqualInt,
+                Type::Byte => OpCode::LessEqualByte,
+                _ => panic!("Invalid type for this operation."),
+            } as u8);
         }
         TokenType::Greater => {
-            bytecode.push(OpCode::GreaterInt as u8);
+            bytecode.push(match expr_type {
+                Type::Int => OpCode::GreaterInt,
+                Type::Byte => OpCode::GreaterByte,
+                _ => panic!("Invalid type for this operation."),
+            } as u8);
         }
         TokenType::GreaterEqual => {
-            bytecode.push(OpCode::GreaterEqualInt as u8);
+            bytecode.push(match expr_type {
+                Type::Int => OpCode::GreaterEqualInt,
+                Type::Byte => OpCode::GreaterEqualByte,
+                _ => panic!("Invalid type for this operation."),
+            } as u8);
         }
 
         TokenType::Ampersand => {
             bytecode.push(match expr_type {
                 Type::Int => OpCode::AndInt,
-                Type::Bool => OpCode::AndByte,
-                Type::Void | Type::Type => panic!("Invalid type for this operation"),
+                Type::Byte | Type::Bool => OpCode::AndByte,
+                Type::Void | Type::Type => panic!("Invalid type for this operation."),
             } as u8);
         }
         TokenType::Caret => {
             bytecode.push(match expr_type {
                 Type::Int => OpCode::XorInt,
-                Type::Bool => OpCode::XorByte,
-                Type::Void | Type::Type => panic!("Invalid type for this operation"),
+                Type::Byte | Type::Bool => OpCode::XorByte,
+                Type::Void | Type::Type => panic!("Invalid type for this operation."),
             } as u8);
         }
         TokenType::Bar => {
             bytecode.push(match expr_type {
                 Type::Int => OpCode::OrInt,
-                Type::Bool => OpCode::OrByte,
-                Type::Void | Type::Type => panic!("Invalid type for this operation"),
+                Type::Byte | Type::Bool => OpCode::OrByte,
+                Type::Void | Type::Type => panic!("Invalid type for this operation."),
             } as u8);
         }
 
@@ -370,14 +428,14 @@ fn handle_binary(
         TokenType::Equality => {
             bytecode.push(match &left.get_type() {
                 Some(Type::Int) => OpCode::EqualityInt,
-                Some(Type::Bool) => OpCode::EqualityByte,
+                Some(Type::Byte | Type::Bool) => OpCode::EqualityByte,
                 _ => panic!("No other type should be possible."),
             } as u8);
         }
         TokenType::Inequality => {
             bytecode.push(match &left.get_type() {
                 Some(Type::Int) => OpCode::InequalityInt,
-                Some(Type::Bool) => OpCode::InequalityByte,
+                Some(Type::Byte | Type::Bool) => OpCode::InequalityByte,
                 _ => panic!("No other type should be possible."),
             } as u8);
         }
