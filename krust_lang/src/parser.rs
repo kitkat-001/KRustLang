@@ -8,6 +8,7 @@ use std::fmt::{Display, Formatter, Result};
 /// The types in this language.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Type {
+    //Byte,
     Int,
     Bool,
     Void, // Nothing type.
@@ -18,7 +19,7 @@ impl Type {
     /// Get the types that this type can be casted to.
     fn valid_casts(self) -> Vec<Self> {
         match self {
-            Self::Int | Self::Bool => vec![Self::Int, Self::Bool],
+            /*Self::Byte | */Self::Int | Self::Bool => vec![/*Self::Byte, */Self::Int, Self::Bool],
             Self::Void => vec![Self::Void],
             Self::Type => vec![Self::Type],
         }
@@ -28,6 +29,7 @@ impl Type {
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
+            //Self::Byte => write!(f, "\"byte\""),
             Self::Int => write!(f, "\"int\""),
             Self::Bool => write!(f, "\"bool\""),
             Self::Void => write!(f, "\"void\""),
@@ -138,6 +140,71 @@ struct Operator {
     output: Type,
 }
 
+// Macro for creating operators that act on all numerical types.
+macro_rules! num_ops {
+    ($op_list: expr) => ($op_list);
+    ($op_list: expr, $op: expr, $output_type: expr; 1) => {
+        {
+            let list: Vec<Operator> = $op_list.into_iter().chain(vec![/*Operator {
+                token: $op,
+                input: vec![Type::Byte],
+                output: $output_type.unwrap_or(Type::Byte),
+            },*/
+            Operator {
+                token: $op,
+                input: vec![Type::Int],
+                output: $output_type.unwrap_or(Type::Int)
+            }].into_iter()).collect();
+            list
+        }
+    };
+    ($op_list: expr, $op: expr, $output_type: expr, $($extra_ops: expr, $extra_outputs: expr), +; 1) => {
+        {
+            let list: Vec<Operator> = num_ops!($op_list, $($extra_ops, $extra_outputs), +; 1).into_iter().chain(vec![/*Operator {
+                token: $op,
+                input: vec![Type::Byte],
+                output: $output_type.unwrap_or(Type::Byte),
+            },*/
+            Operator {
+                token: $op,
+                input: vec![Type::Int],
+                output: $output_type.unwrap_or(Type::Int),
+            }].into_iter()).collect();
+            list
+        }
+    };
+    ($op_list: expr, $op: expr, $output_type: expr; 2) => {
+        {
+            let list: Vec<Operator> = $op_list.into_iter().chain(vec![/*Operator {
+                token: $op,
+                input: vec![Type::Byte, Type::Byte],
+                output: $output_type.unwrap_or(Type::Byte),
+            },*/
+            Operator {
+                token: $op,
+                input: vec![Type::Int, Type::Int],
+                output: $output_type.unwrap_or(Type::Int)
+            }].into_iter()).collect();
+            list
+        }
+    };
+    ($op_list: expr, $op: expr, $output_type: expr, $($extra_ops: expr, $extra_outputs: expr), +; 2) => {
+        {
+            let list: Vec<Operator> = num_ops!($op_list, $($extra_ops, $extra_outputs), +; 2).into_iter().chain(vec![/*Operator {
+                token: $op,
+                input: vec![Type::Byte, Type::Byte],
+                output: $output_type.unwrap_or(Type::Byte),
+            },*/
+            Operator {
+                token: $op,
+                input: vec![Type::Int, Type::Int],
+                output: $output_type.unwrap_or(Type::Int),
+            }].into_iter()).collect();
+            list
+        }
+    };
+}
+
 // Allows list of operators to have methods associated with them.
 #[derive(Clone)]
 struct OpList {
@@ -149,32 +216,7 @@ impl OpList {
     fn get_op_lists() -> [Self; 8] {
         [
             Self {
-                list: vec![
-                    Operator {
-                        token: TokenType::Less,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Bool,
-                    },
-                    Operator {
-                        token: TokenType::LessEqual,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Bool,
-                    },
-                    Operator {
-                        token: TokenType::Greater,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Bool,
-                    },
-                    Operator {
-                        token: TokenType::GreaterEqual,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Bool,
-                    },
-                    Operator {
-                        token: TokenType::Equality,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Bool,
-                    },
+                list: num_ops!(vec![
                     Operator {
                         token: TokenType::Equality,
                         input: vec![Type::Bool, Type::Bool],
@@ -182,123 +224,60 @@ impl OpList {
                     },
                     Operator {
                         token: TokenType::Inequality,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Bool,
-                    },
-                    Operator {
-                        token: TokenType::Inequality,
                         input: vec![Type::Bool, Type::Bool],
                         output: Type::Bool,
                     },
-                ],
+                ], TokenType::Less, Some(Type::Bool), TokenType::LessEqual, Some(Type::Bool),
+                TokenType::Greater, Some(Type::Bool), TokenType::GreaterEqual, Some(Type::Bool),
+                TokenType::Equality, Some(Type::Bool), TokenType::Inequality, Some(Type::Bool); 2),
             },
             Self {
-                list: vec![
-                    Operator {
-                        token: TokenType::Bar,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Int,
-                    },
+                list: num_ops!(vec![
                     Operator {
                         token: TokenType::Bar,
                         input: vec![Type::Bool, Type::Bool],
                         output: Type::Bool,
                     },
-                ],
+                ], TokenType::Bar, None; 2)
             },
             Self {
-                list: vec![
-                    Operator {
-                        token: TokenType::Caret,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Int,
-                    },
+                list: num_ops!(vec![
                     Operator {
                         token: TokenType::Caret,
                         input: vec![Type::Bool, Type::Bool],
                         output: Type::Bool,
                     },
-                ],
+                ], TokenType::Caret, None; 2)
             },
             Self {
-                list: vec![
-                    Operator {
-                        token: TokenType::Ampersand,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Int,
-                    },
+                list: num_ops!(vec![
                     Operator {
                         token: TokenType::Ampersand,
                         input: vec![Type::Bool, Type::Bool],
                         output: Type::Bool,
                     },
-                ],
+                ], TokenType::Ampersand, None; 2)
             },
             Self {
-                list: vec![
-                    Operator {
-                        token: TokenType::LeftShift,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Int,
-                    },
-                    Operator {
-                        token: TokenType::RightShift,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Int,
-                    },
-                ],
+                list: num_ops!(Vec::new(),
+                TokenType::LeftShift, None, TokenType::RightShift, None; 2)
             },
             Self {
-                list: vec![
-                    Operator {
-                        token: TokenType::Plus,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Int,
-                    },
-                    Operator {
-                        token: TokenType::Minus,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Int,
-                    },
-                ],
+                list: num_ops!(Vec::new(),
+                TokenType::Plus, None, TokenType::Minus, None; 2)
             },
             Self {
-                list: vec![
-                    Operator {
-                        token: TokenType::Star,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Int,
-                    },
-                    Operator {
-                        token: TokenType::Slash,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Int,
-                    },
-                    Operator {
-                        token: TokenType::Percent,
-                        input: vec![Type::Int, Type::Int],
-                        output: Type::Int,
-                    },
-                ],
+                list: num_ops!(Vec::new(),
+                TokenType::Star, None, TokenType::Slash, None, TokenType::Percent, None; 2)
             },
             Self {
-                list: vec![
-                    Operator {
-                        token: TokenType::Minus,
-                        input: vec![Type::Int],
-                        output: Type::Int,
-                    },
-                    Operator {
-                        token: TokenType::Tilde,
-                        input: vec![Type::Int],
-                        output: Type::Int,
-                    },
+                list: num_ops!(vec![
                     Operator {
                         token: TokenType::ExclamationMark,
                         input: vec![Type::Bool],
                         output: Type::Bool,
                     },
-                ],
+                ], TokenType::Minus, None, TokenType::Tilde, None; 1)
             },
         ]
     }
@@ -513,6 +492,7 @@ fn get_primary(
             });
             Expression::EOF
         }
+        //TokenType::Byte => Expression::Type { value: Type::Byte },
         TokenType::Int => Expression::Type { value: Type::Int },
         TokenType::Bool => Expression::Type { value: Type::Bool },
         TokenType::Other => {

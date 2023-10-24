@@ -55,6 +55,7 @@ pub enum TokenType {
     // Keywords
     True,
     False,
+    Byte,
     Int,
     Bool,
 
@@ -100,6 +101,7 @@ pub fn lex(file_text: String) -> LexerOutput {
     let trie: Node<char, TokenType> = Node::new_with_string(vec![
         ("true".to_string(), TokenType::True),
         ("false".to_string(), TokenType::False),
+        ("byte".to_string(), TokenType::Byte),
         ("int".to_string(), TokenType::Int),
         ("bool".to_string(), TokenType::Bool),
     ]);
